@@ -72,14 +72,14 @@
 
     <div id="ui-panel">
         <div class="gesture-guide">
-            <div>✋ Buka Lebar = <span>Bunga</span></div>
+            <div>✋ Buka Lebar = <span>Bunga Mawar</span></div>
             <div>✊ Kepalkan = <span>Amplop</span></div>
             <div>✌️ Dua Jari = <span>Hati</span></div>
             <div>☝️ Satu Jari = <span>Bingkai</span></div>
         </div>
         <div class="ui-group">
             <div class="ui-label">Warna Partikel</div>
-            <input type="color" id="color-picker" value="#ffcccc">
+            <input type="color" id="color-picker" value="#e59a8d"> 
         </div>
     </div>
 
@@ -97,15 +97,13 @@
         void main() {
             vRandom = a_random;
             vec3 pos = position + vec3(
-                sin(u_time * 0.2 + a_random * 10.0) * 0.05,
-                cos(u_time * 0.3 + a_random * 10.0) * 0.05,
-                sin(u_time * 0.1 + a_random * 10.0) * 0.05
+                sin(u_time * 0.2 + a_random * 10.0) * 0.03,
+                cos(u_time * 0.3 + a_random * 10.0) * 0.03,
+                sin(u_time * 0.1 + a_random * 10.0) * 0.03
             );
             
             vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
-            
-            // PERBAIKAN TOTAL: Skala diturunkan dari 1.8 menjadi 0.15 agar jadi debu pixel halus
-            gl_PointSize = 0.15 * (1.0 + a_random) * (100.0 / -mvPosition.z);
+            gl_PointSize = 0.2 * (1.0 + a_random) * (100.0 / -mvPosition.z);
             gl_Position = projectionMatrix * mvPosition;
         }
     </script>
@@ -114,14 +112,11 @@
         varying float vRandom;
         void main() {
             float dist = distance(gl_PointCoord, vec2(0.5));
-            // Melembutkan tepian (soft edge) agar tidak seperti kotak kasar
             float alpha = smoothstep(0.5, 0.2, dist);
             if (alpha < 0.05) discard;
             
             vec3 finalColor = u_color * (0.8 + vRandom * 0.4);
-            
-            // Transparansi disesuaikan agar tumpukannya elegan
-            gl_FragColor = vec4(finalColor, alpha * 0.8); 
+            gl_FragColor = vec4(finalColor, alpha * 0.85); 
         }
     </script>
 
@@ -129,9 +124,9 @@
         let scene, camera, renderer, clock;
         let particles, particleMaterial;
         
-        // Mengembalikan jumlah partikel menjadi 12.000 karena ukurannya sekarang sangat kecil (debu)
-        let particleCount = 12000; 
-        let currentPattern = 'heart'; 
+        // Ditingkatkan ke 15.000 agar mawarnya sangat padat dan detail
+        let particleCount = 15000; 
+        let currentPattern = 'flower'; // Bawaan langsung tampil mawar
         
         let gestureTimer = 0;
         let detectedGesture = null;
@@ -146,7 +141,7 @@
         function initThree() {
             scene = new THREE.Scene();
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.z = 5;
+            camera.position.z = 4.5; // Sedikit didekatkan
 
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -191,49 +186,89 @@
             for (let i = 0; i < particleCount; i++) {
                 let x, y, z;
                 const pIdx = i * 3;
-                const rand = Math.random();
+                const rand1 = Math.random();
+                const rand2 = Math.random();
                 
                 switch (pattern) {
                     case 'heart':
-                        const tHeart = rand * Math.PI * 2;
-                        const noiseH = (Math.random() - 0.5) * 0.15; 
-                        x = (16 * Math.pow(Math.sin(tHeart), 3)) * 0.07 + noiseH;
-                        y = (13 * Math.cos(tHeart) - 5 * Math.cos(2*tHeart) - 2 * Math.cos(3*tHeart) - Math.cos(4*tHeart)) * 0.07 + noiseH;
-                        z = (Math.random() - 0.5) * 0.3;
-                        y += 0.5; 
+                        const tH = rand2 * Math.PI * 2;
+                        const rH = Math.sqrt(rand1); 
+                        const scaleH = 0.08;
+                        x = rH * 16 * Math.pow(Math.sin(tH), 3) * scaleH;
+                        y = rH * (13 * Math.cos(tH) - 5 * Math.cos(2*tH) - 2 * Math.cos(3*tH) - Math.cos(4*tH)) * scaleH;
+                        z = (Math.random() - 0.5) * 0.2; 
+                        y += 0.2; 
                         break;
                         
                     case 'flower':
-                        const tFlower = rand * Math.PI * 10;
-                        const radiusF = Math.sqrt(rand) * 1.2;
-                        const petals = Math.cos(tFlower * 5) * 0.5 + 1;
-                        x = radiusF * petals * Math.cos(tFlower);
-                        y = radiusF * petals * Math.sin(tFlower);
-                        z = (Math.random() - 0.5) * 0.2;
+                        // --- ALGORITMA PHYLLOTAXIS UNTUK MAWAR REALISTIS ---
+                        // Memastikan partikel terdistribusi rata dari tengah ke luar
+                        const fraction = i / particleCount; 
+                        // Sudut Emas (Golden Angle) dalam radian ~137.5 derajat
+                        const goldenAngle = 2.39996323; 
+                        const thetaF = i * goldenAngle;
+                        
+                        // Jari-jari melebar ke luar, pangkat 0.6 membuat tengahnya lebih padat
+                        let rF = Math.pow(fraction, 0.6) * 1.8; 
+                        
+                        // Menambahkan gelombang kelopak mawar yang berlapis
+                        // (Menciptakan ilusi lipatan kelopak)
+                        const petalWave = Math.sin(thetaF * 3.0 + rF * 8.0) * 0.15;
+                        rF += petalWave * fraction; // Lipatan lebih kuat di bagian luar
+                        
+                        x = rF * Math.cos(thetaF);
+                        y = rF * Math.sin(thetaF);
+                        
+                        // Mengatur kedalaman (Sumbu Z) seperti mangkuk mawar sungguhan
+                        // Tengahnya tinggi, pinggirannya melengkung ke bawah, lalu bergelombang
+                        z = (0.3 - rF * 0.3) + (Math.sin(thetaF * 5.0 - rF * 10.0) * 0.08);
+                        
+                        // Tambahan noise kecil agar tidak terlalu kaku/seperti debu kosmik
+                        x += (Math.random() - 0.5) * 0.02;
+                        y += (Math.random() - 0.5) * 0.02;
+                        z += (Math.random() - 0.5) * 0.02;
                         break;
                         
                     case 'frame':
+                        const wOuter = 1.2, hOuter = 1.6;
+                        const thick = 0.5; 
                         const edge = Math.random();
-                        const noiseF = (Math.random() - 0.5) * 0.2;
-                        if (edge < 0.25) { x = -1.0 + noiseF; y = (Math.random()-0.5)*2.8; }
-                        else if (edge < 0.5) { x = 1.0 + noiseF; y = (Math.random()-0.5)*2.8; }
-                        else if (edge < 0.75) { x = (Math.random()-0.5)*2.0; y = -1.4 + noiseF; }
-                        else { x = (Math.random()-0.5)*2.0; y = 1.4 + noiseF; }
-                        z = (Math.random() - 0.5) * 0.1;
+                        
+                        if (edge < 0.25) { 
+                            x = (Math.random()-0.5) * wOuter * 2;
+                            y = hOuter - Math.random() * thick;
+                        } else if (edge < 0.5) { 
+                            x = (Math.random()-0.5) * wOuter * 2;
+                            y = -hOuter + Math.random() * thick;
+                        } else if (edge < 0.75) { 
+                            x = -wOuter + Math.random() * thick;
+                            y = (Math.random()-0.5) * hOuter * 2;
+                        } else { 
+                            x = wOuter - Math.random() * thick;
+                            y = (Math.random()-0.5) * hOuter * 2;
+                        }
+                        z = (Math.random() - 0.5) * 0.15;
                         break;
                         
                     case 'envelope':
-                        const part = Math.random();
-                        const noiseE = (Math.random() - 0.5) * 0.15;
-                        if (part < 0.6) {
-                            x = (Math.random()-0.5)*2.5; 
-                            y = (Math.random()-0.5)*1.5 - 0.2;
-                        } else {
-                            const lx = (Math.random()-0.5)*2.5;
-                            x = lx;
-                            y = 0.55 - Math.abs(lx) * 0.45 + noiseE;
+                        const isBody = Math.random();
+                        if (isBody < 0.65) { 
+                            x = (Math.random()-0.5) * 2.8;
+                            y = (Math.random()-0.5) * 1.6 - 0.2; 
+                            z = (Math.random()-0.5) * 0.1;
+                        } else { 
+                            let u = Math.random();
+                            let v = Math.random();
+                            if (u + v > 1) { u = 1 - u; v = 1 - v; } 
+                            
+                            const ax = -1.4, ay = 0.6;
+                            const bx = 1.4, by = 0.6;
+                            const cx = 0.0, cy = -0.3;
+                            
+                            x = ax + u * (bx - ax) + v * (cx - ax);
+                            y = ay + u * (by - ay) + v * (cy - ay);
+                            z = 0.05 + (Math.random()-0.5) * 0.05; 
                         }
-                        z = (Math.random() - 0.5) * 0.05;
                         break;
                 }
                 positions[pIdx] = x; positions[pIdx + 1] = y; positions[pIdx + 2] = z;
@@ -329,7 +364,7 @@
                 const currentPositions = positionsAttribute.array;
                 const { startPositions, targetPositions, transitionStartTime } = particles.userData;
                 
-                const transitionProgress = THREE.MathUtils.clamp((elapsedTime - transitionStartTime) / 1.2, 0, 1);
+                const transitionProgress = THREE.MathUtils.clamp((elapsedTime - transitionStartTime) / 1.5, 0, 1);
                 const easedProgress = transitionProgress < .5 ? 4 * transitionProgress * transitionProgress * transitionProgress : (transitionProgress - 1) * (2 * transitionProgress - 2) * (2 * transitionProgress - 2) + 1;
 
                 for (let i = 0; i < currentPositions.length; i++) {
@@ -341,8 +376,10 @@
             }
 
             if (particles) {
-                particles.rotation.y = Math.sin(elapsedTime * 0.2) * 0.3;
-                particles.rotation.x = Math.cos(elapsedTime * 0.15) * 0.1;
+                // Memberikan efek putaran lembut agar kedalaman 3D mawarnya terlihat jelas
+                particles.rotation.y = elapsedTime * 0.15;
+                particles.rotation.x = Math.cos(elapsedTime * 0.1) * 0.1;
+                particles.rotation.z = Math.sin(elapsedTime * 0.05) * 0.05;
             }
 
             renderer.render(scene, camera);

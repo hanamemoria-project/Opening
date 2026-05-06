@@ -104,8 +104,8 @@
             
             vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
             
-            // Ukuran partikel disesuaikan agar tegas dan tidak terlalu besar
-            gl_PointSize = 1.8 * (1.0 + a_random) * (100.0 / -mvPosition.z);
+            // PERBAIKAN TOTAL: Skala diturunkan dari 1.8 menjadi 0.15 agar jadi debu pixel halus
+            gl_PointSize = 0.15 * (1.0 + a_random) * (100.0 / -mvPosition.z);
             gl_Position = projectionMatrix * mvPosition;
         }
     </script>
@@ -113,15 +113,15 @@
         uniform vec3 u_color;
         varying float vRandom;
         void main() {
-            // Membentuk lingkaran sempurna untuk setiap partikel
             float dist = distance(gl_PointCoord, vec2(0.5));
-            if (dist > 0.5) discard; // Potong ujung kotak menjadi bulat
+            // Melembutkan tepian (soft edge) agar tidak seperti kotak kasar
+            float alpha = smoothstep(0.5, 0.2, dist);
+            if (alpha < 0.05) discard;
             
-            // Warna dasar yang konsisten, tanpa penambahan efek glow putih
-            vec3 finalColor = u_color * (0.7 + vRandom * 0.3);
+            vec3 finalColor = u_color * (0.8 + vRandom * 0.4);
             
-            // Transparansi 70% agar bentuk kerumunannya tetap terlihat berongga
-            gl_FragColor = vec4(finalColor, 0.7); 
+            // Transparansi disesuaikan agar tumpukannya elegan
+            gl_FragColor = vec4(finalColor, alpha * 0.8); 
         }
     </script>
 
@@ -129,7 +129,8 @@
         let scene, camera, renderer, clock;
         let particles, particleMaterial;
         
-        let particleCount = 8000; 
+        // Mengembalikan jumlah partikel menjadi 12.000 karena ukurannya sekarang sangat kecil (debu)
+        let particleCount = 12000; 
         let currentPattern = 'heart'; 
         
         let gestureTimer = 0;
@@ -179,7 +180,6 @@
                     u_color: { value: new THREE.Color(document.getElementById('color-picker').value) }
                 },
                 transparent: true, 
-                // PERUBAHAN: Menghapus AdditiveBlending. Normal blending akan menjaga warna asli
                 depthWrite: false
             });
 

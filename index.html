@@ -96,7 +96,6 @@
 
         void main() {
             vRandom = a_random;
-            // Gerakan melayang lambat (idle floating)
             vec3 pos = position + vec3(
                 sin(u_time * 0.2 + a_random * 10.0) * 0.05,
                 cos(u_time * 0.3 + a_random * 10.0) * 0.05,
@@ -105,8 +104,8 @@
             
             vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
             
-            // PERBAIKAN 1: Ukuran partikel dikecilkan drastis (dari 2.0 ke 0.8)
-            gl_PointSize = 0.8 * (1.0 + a_random) * (100.0 / -mvPosition.z);
+            // Ukuran partikel disesuaikan agar tegas dan tidak terlalu besar
+            gl_PointSize = 1.8 * (1.0 + a_random) * (100.0 / -mvPosition.z);
             gl_Position = projectionMatrix * mvPosition;
         }
     </script>
@@ -114,14 +113,15 @@
         uniform vec3 u_color;
         varying float vRandom;
         void main() {
+            // Membentuk lingkaran sempurna untuk setiap partikel
             float dist = distance(gl_PointCoord, vec2(0.5));
-            // PERBAIKAN 2: Mengurangi kekuatan "glow" agar titik partikel lebih tegas
-            float alpha = smoothstep(0.5, 0.3, dist);
-            vec3 finalColor = u_color * (0.8 + vRandom * 0.4);
-            finalColor += vec3(1.0) * smoothstep(0.1, 0.0, dist) * 0.2; 
+            if (dist > 0.5) discard; // Potong ujung kotak menjadi bulat
             
-            // Transparansi diturunkan agar tidak memutih saat bertumpuk
-            gl_FragColor = vec4(finalColor, alpha * 0.5); 
+            // Warna dasar yang konsisten, tanpa penambahan efek glow putih
+            vec3 finalColor = u_color * (0.7 + vRandom * 0.3);
+            
+            // Transparansi 70% agar bentuk kerumunannya tetap terlihat berongga
+            gl_FragColor = vec4(finalColor, 0.7); 
         }
     </script>
 
@@ -129,7 +129,6 @@
         let scene, camera, renderer, clock;
         let particles, particleMaterial;
         
-        // PERBAIKAN 3: Jumlah partikel sedikit dikurangi agar tidak terlalu sesak dan memutih
         let particleCount = 8000; 
         let currentPattern = 'heart'; 
         
@@ -146,7 +145,7 @@
         function initThree() {
             scene = new THREE.Scene();
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.z = 5; // Jarak kamera
+            camera.position.z = 5;
 
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -179,14 +178,15 @@
                     u_time: { value: 0 },
                     u_color: { value: new THREE.Color(document.getElementById('color-picker').value) }
                 },
-                transparent: true, blending: THREE.AdditiveBlending, depthWrite: false
+                transparent: true, 
+                // PERUBAHAN: Menghapus AdditiveBlending. Normal blending akan menjaga warna asli
+                depthWrite: false
             });
 
             particles = new THREE.Points(geometry, particleMaterial);
             scene.add(particles);
         }
 
-        // --- PERBAIKAN 4: SKALA RUMUS MATEMATIKA DIKECILKAN ---
         function generatePattern(positions, pattern) {
             for (let i = 0; i < particleCount; i++) {
                 let x, y, z;
@@ -197,17 +197,14 @@
                     case 'heart':
                         const tHeart = rand * Math.PI * 2;
                         const noiseH = (Math.random() - 0.5) * 0.15; 
-                        // Skala dikali 0.07 agar bentuk hatinya kecil dan pas di tengah layar
                         x = (16 * Math.pow(Math.sin(tHeart), 3)) * 0.07 + noiseH;
                         y = (13 * Math.cos(tHeart) - 5 * Math.cos(2*tHeart) - 2 * Math.cos(3*tHeart) - Math.cos(4*tHeart)) * 0.07 + noiseH;
                         z = (Math.random() - 0.5) * 0.3;
-                        // Naikkan sedikit ke atas
                         y += 0.5; 
                         break;
                         
                     case 'flower':
                         const tFlower = rand * Math.PI * 10;
-                        // Radius bunga dikecilkan menjadi 1.2
                         const radiusF = Math.sqrt(rand) * 1.2;
                         const petals = Math.cos(tFlower * 5) * 0.5 + 1;
                         x = radiusF * petals * Math.cos(tFlower);
@@ -218,7 +215,6 @@
                     case 'frame':
                         const edge = Math.random();
                         const noiseF = (Math.random() - 0.5) * 0.2;
-                        // Lebar dan tinggi bingkai dikecilkan
                         if (edge < 0.25) { x = -1.0 + noiseF; y = (Math.random()-0.5)*2.8; }
                         else if (edge < 0.5) { x = 1.0 + noiseF; y = (Math.random()-0.5)*2.8; }
                         else if (edge < 0.75) { x = (Math.random()-0.5)*2.0; y = -1.4 + noiseF; }
@@ -229,7 +225,6 @@
                     case 'envelope':
                         const part = Math.random();
                         const noiseE = (Math.random() - 0.5) * 0.15;
-                        // Ukuran amplop dikecilkan
                         if (part < 0.6) {
                             x = (Math.random()-0.5)*2.5; 
                             y = (Math.random()-0.5)*1.5 - 0.2;
@@ -345,7 +340,6 @@
                 if (transitionProgress >= 1) particles.userData.transitioning = false;
             }
 
-            // Putaran dibuat sedikit lebih dinamis
             if (particles) {
                 particles.rotation.y = Math.sin(elapsedTime * 0.2) * 0.3;
                 particles.rotation.x = Math.cos(elapsedTime * 0.15) * 0.1;

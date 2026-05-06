@@ -62,7 +62,7 @@
     </style>
 </head>
 <body>
-    <div id="loading">Mempersiapkan AR Kamera...</div>
+    <div id="loading">Mempersiapkan Kamera...</div>
     <div id="sensor-status" style="color: #ffaaaa;">Kamera Belum Aktif</div>
     
     <div id="branding">
@@ -72,14 +72,14 @@
 
     <div id="ui-panel">
         <div class="gesture-guide">
-            <div>✋ Buka Lebar = <span>Bunga Mawar</span></div>
+            <div>✋ Buka Lebar = <span>Bunga Tulip</span></div>
             <div>✊ Kepalkan = <span>Amplop</span></div>
             <div>✌️ Dua Jari = <span>Hati</span></div>
             <div>☝️ Satu Jari = <span>Bingkai</span></div>
         </div>
         <div class="ui-group">
             <div class="ui-label">Warna Partikel</div>
-            <input type="color" id="color-picker" value="#e59a8d"> 
+            <input type="color" id="color-picker" value="#e59a8d">
         </div>
     </div>
 
@@ -124,9 +124,8 @@
         let scene, camera, renderer, clock;
         let particles, particleMaterial;
         
-        // Ditingkatkan ke 15.000 agar mawarnya sangat padat dan detail
         let particleCount = 15000; 
-        let currentPattern = 'flower'; // Bawaan langsung tampil mawar
+        let currentPattern = 'flower'; 
         
         let gestureTimer = 0;
         let detectedGesture = null;
@@ -141,7 +140,8 @@
         function initThree() {
             scene = new THREE.Scene();
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.z = 4.5; // Sedikit didekatkan
+            // Kamera dimundurkan menjadi 6.5 agar tangkai dan daun muat di layar HP
+            camera.position.z = 6.5; 
 
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -201,32 +201,62 @@
                         break;
                         
                     case 'flower':
-                        // --- ALGORITMA PHYLLOTAXIS UNTUK MAWAR REALISTIS ---
-                        // Memastikan partikel terdistribusi rata dari tengah ke luar
-                        const fraction = i / particleCount; 
-                        // Sudut Emas (Golden Angle) dalam radian ~137.5 derajat
-                        const goldenAngle = 2.39996323; 
-                        const thetaF = i * goldenAngle;
+                        // --- TULIP LENGKAP DENGAN TANGKAI DAN DAUN ---
+                        const part = Math.random();
                         
-                        // Jari-jari melebar ke luar, pangkat 0.6 membuat tengahnya lebih padat
-                        let rF = Math.pow(fraction, 0.6) * 1.8; 
-                        
-                        // Menambahkan gelombang kelopak mawar yang berlapis
-                        // (Menciptakan ilusi lipatan kelopak)
-                        const petalWave = Math.sin(thetaF * 3.0 + rF * 8.0) * 0.15;
-                        rF += petalWave * fraction; // Lipatan lebih kuat di bagian luar
-                        
-                        x = rF * Math.cos(thetaF);
-                        y = rF * Math.sin(thetaF);
-                        
-                        // Mengatur kedalaman (Sumbu Z) seperti mangkuk mawar sungguhan
-                        // Tengahnya tinggi, pinggirannya melengkung ke bawah, lalu bergelombang
-                        z = (0.3 - rF * 0.3) + (Math.sin(thetaF * 5.0 - rF * 10.0) * 0.08);
-                        
-                        // Tambahan noise kecil agar tidak terlalu kaku/seperti debu kosmik
-                        x += (Math.random() - 0.5) * 0.02;
-                        y += (Math.random() - 0.5) * 0.02;
-                        z += (Math.random() - 0.5) * 0.02;
+                        if (part < 0.6) {
+                            // 1. MAHKOTA TULIP (60% Partikel)
+                            const u = rand1;
+                            const v = rand2 * Math.PI * 2;
+                            // Profil melengkung khas tulip
+                            const rProfile = Math.pow(u, 0.4) * (1.2 - u * 0.4); 
+                            const petals = 1.0 + 0.15 * Math.sin(6 * v) * u;
+                            const thickness = 0.85 + 0.15 * Math.random();
+                            const R = rProfile * petals * thickness;
+                            
+                            x = R * Math.cos(v);
+                            z = R * Math.sin(v);
+                            
+                            // Tinggi mahkota bunga dan lekukan tajam di ujung kelopak
+                            const petalTip = Math.abs(Math.sin(3 * v)) * 0.3 * Math.pow(u, 2);
+                            y = (u * 1.8) + petalTip - 0.2; 
+                            
+                        } else if (part < 0.7) {
+                            // 2. TANGKAI (10% Partikel)
+                            const u = rand1;
+                            y = -0.2 - u * 2.8; // Tangkai menjulur ke bawah
+                            const r = 0.04 + Math.random() * 0.04; // Tangkai silinder
+                            const theta = rand2 * Math.PI * 2;
+                            
+                            // Sedikit kurva pada tangkai agar terlihat alami
+                            x = r * Math.cos(theta) + Math.sin(u * 2.0) * 0.05; 
+                            z = r * Math.sin(theta);
+                            
+                        } else {
+                            // 3. DAUN (30% Partikel)
+                            const u = rand1; // Panjang daun
+                            const v = rand2; // Lebar daun
+                            
+                            // Titik pangkal daun di bawah tangkai
+                            const startY = -2.0; 
+                            
+                            // Tulang daun utama melengkung ke kanan dan ke atas
+                            const spineX = Math.pow(u, 1.5) * 1.5; 
+                            const spineY = startY + u * 2.5;       
+                            const spineZ = Math.sin(u * Math.PI) * 0.4; // Melengkung ke belakang/depan
+                            
+                            // Profil lebar daun: melebar di tengah, meruncing di ujung
+                            const leafWidth = Math.sin(u * Math.PI) * 0.5 * (1.0 - u * 0.2);
+                            
+                            // Bentuk melengkung (cupping) pada daun
+                            const crossX = (v - 0.5) * leafWidth * 0.6;
+                            const crossY = Math.sin(v * Math.PI) * 0.15; 
+                            const crossZ = (v - 0.5) * leafWidth;
+                            
+                            x = spineX + crossX;
+                            y = spineY + crossY;
+                            z = spineZ + crossZ;
+                        }
                         break;
                         
                     case 'frame':
@@ -376,10 +406,10 @@
             }
 
             if (particles) {
-                // Memberikan efek putaran lembut agar kedalaman 3D mawarnya terlihat jelas
-                particles.rotation.y = elapsedTime * 0.15;
-                particles.rotation.x = Math.cos(elapsedTime * 0.1) * 0.1;
-                particles.rotation.z = Math.sin(elapsedTime * 0.05) * 0.05;
+                // Rotasi lambat agar daun dan bentuk 3D tulip terlihat berputar elegan
+                particles.rotation.y = elapsedTime * 0.25;
+                // Rotasi atas-bawah sangat kecil agar tangkai tidak terbang
+                particles.rotation.x = Math.cos(elapsedTime * 0.1) * 0.05; 
             }
 
             renderer.render(scene, camera);

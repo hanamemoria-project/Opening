@@ -322,7 +322,6 @@
             }
         }
 
-        // DURASI TRANSISI DIPERLAMBAT SECARA DEFAULT MENJADI 3 DETIK
         function transitionPattern(newPattern, durationSec = 3.0) {
             const positionsAttribute = particles.geometry.attributes.position;
             const currentPositions = positionsAttribute.array;
@@ -356,7 +355,6 @@
 
             if (stepTarget === 1) {
                 statusEl.innerText = "Mengumpulkan debu...";
-                // Diperlambat
                 transitionPattern('singularity', 1.0);
                 setTimeout(() => {
                     statusEl.innerText = "Membentuk Peti...";
@@ -365,7 +363,7 @@
                         isAnimating = false; currentStage = 1; 
                         statusEl.innerText = "Siap."; 
                         showSubtitle("Tahap 2: <span>Buka Lebar Tangan (✋)</span> untuk membuka peti.");
-                    }, 3000); // Sinkronkan dengan 3.0s
+                    }, 3000); 
                 }, 1000);
             } 
             else if (stepTarget === 2) {
@@ -395,8 +393,8 @@
                     setTimeout(() => { 
                         isAnimating = false; currentStage = 4; 
                         statusEl.innerText = "Siap."; 
-                        // MENGUBAH TEKS PANDUAN TAHAP 5 MENJADI DUA JARI
-                        showSubtitle("Tahap 5: Bentuk <span>Dua Jari (✌️)</span> untuk menyimpan ke amplop.");
+                        // MENGUBAH TEKS PANDUAN TAHAP 5 MENJADI TELUNJUK & JEMPOL (👆)
+                        showSubtitle("Tahap 5: Bentuk <span>Telunjuk & Jempol (👆)</span> untuk menyimpan ke amplop.");
                     }, 3000);
                 }, 1000);
             }
@@ -462,6 +460,11 @@
                 const isOpen = isIndexOpen && isMiddleOpen && isRingOpen && isPinkyOpen;
                 const isPeace = isIndexOpen && isMiddleOpen && !isRingOpen && !isPinkyOpen;
                 const isIndexOnly = isIndexOpen && !isMiddleOpen && !isRingOpen && !isPinkyOpen && pinchDist > 0.1;
+                
+                // MENDETEKSI GESTUR TAHAP 5 (TELUNJUK & JEMPOL TERBUKA / 👆)
+                // Deteksi ini diaktifkan ketika telunjuk terbuka dan jempol berjauhan dari pangkalnya (pinchDist yang besar)
+                const isIndexAndThumb = isIndexOpen && !isMiddleOpen && !isRingOpen && !isPinkyOpen && pinchDist > 0.1;
+                
                 const isPinch = pinchDist < 0.08 && !isMiddleOpen && !isRingOpen;
 
                 let actionTriggered = false;
@@ -470,8 +473,7 @@
                 else if (currentStage === 1 && isOpen) { triggerSequenceStep(2); actionTriggered = true; }
                 else if (currentStage === 2 && isPeace) { triggerSequenceStep(3); actionTriggered = true; }
                 else if (currentStage === 3 && isIndexOnly) { triggerSequenceStep(4); actionTriggered = true; }
-                // MENGUBAH LOGIKA SENSOR TAHAP 5 MENJADI DUA JARI (PEACE)
-                else if (currentStage === 4 && isPeace) { triggerSequenceStep(5); actionTriggered = true; } 
+                else if (currentStage === 4 && isIndexAndThumb) { triggerSequenceStep(5); actionTriggered = true; } 
                 else if (currentStage === 5 && isPinch) { triggerSequenceStep(6); actionTriggered = true; } 
                 
                 if (actionTriggered) {
@@ -498,7 +500,6 @@
                 const { startPositions, targetPositions, transitionStartTime, transitionDuration } = particles.userData;
                 
                 const transitionProgress = THREE.MathUtils.clamp((elapsedTime - transitionStartTime) / transitionDuration, 0, 1);
-                // Fungsi Cubic Ease-in-out untuk transisi mulus dan dramatis
                 const easedProgress = transitionProgress < .5 ? 4 * transitionProgress * transitionProgress * transitionProgress : (transitionProgress - 1) * (2 * transitionProgress - 2) * (2 * transitionProgress - 2) + 1;
 
                 for (let i = 0; i < currentPositions.length; i++) {

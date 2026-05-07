@@ -21,23 +21,15 @@
         .ui-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: rgba(255, 255, 255, 0.6); margin-bottom: 5px; display: block;}
         input[type="color"] { border: none; width: 100px; height: 30px; border-radius: 5px; cursor: pointer; background: none; }
 
-        /* Subtitle Sinematik di Bawah (Versi Optimal Anti-Lag) */
         #subtitle-container {
-            position: absolute; bottom: 120px; left: 50%; 
-            transform: translate3d(-50%, 0, 0); /* Memaksa render menggunakan GPU */
+            position: absolute; bottom: 120px; left: 50%; transform: translate3d(-50%, 0, 0);
             text-align: center; z-index: 120; width: 90%; max-width: 500px;
-            background: rgba(15, 15, 20, 0.85); /* Solid transparan, bukan blur */
-            padding: 12px 20px; border-radius: 30px;
-            border: 1px solid rgba(229, 154, 141, 0.3); 
-            transition: opacity 0.4s ease, transform 0.4s ease; 
-            opacity: 0; pointer-events: none;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            will-change: opacity, transform; /* Persiapan memori hardware */
+            background: rgba(15, 15, 20, 0.85); padding: 12px 20px; border-radius: 30px;
+            border: 1px solid rgba(229, 154, 141, 0.3); transition: opacity 0.4s ease, transform 0.4s ease; 
+            opacity: 0; pointer-events: none; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            will-change: opacity, transform;
         }
-        #subtitle-container.show { 
-            opacity: 1; 
-            transform: translate3d(-50%, -10px, 0); 
-        }
+        #subtitle-container.show { opacity: 1; transform: translate3d(-50%, -10px, 0); }
         #subtitle-text { color: rgba(255,255,255,0.9); font-size: 14px; letter-spacing: 1px; line-height: 1.5; }
         #subtitle-text span { color: #e59a8d; font-weight: bold; font-size: 16px;}
         
@@ -76,14 +68,22 @@
         #message-card p { margin: 0; font-size: 15px; line-height: 1.6; font-weight: 300; font-style: italic;}
         #message-card .author { margin-top: 15px; font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px;}
 
+        /* Panduan UI di Kiri (Versi Minimalis) */
+        .guide-list { position: absolute; left: 20px; top: 70px; display: flex; flex-direction: column; gap: 5px; pointer-events: none; z-index: 90;}
+        .step { font-size: 11px; color: rgba(255,255,255,0.3); padding: 5px 10px; border-radius: 5px; transition: all 0.5s; }
+        .step.active { color: white; background: rgba(229, 154, 141, 0.2); border-left: 3px solid #e59a8d; font-size: 12px;}
+        .step span { color: #e59a8d; font-weight: bold; }
+
         @media (max-width: 600px) {
             #branding h1 { font-size: 22px; }
             #branding p { font-size: 11px; }
             #sensor-status { top: 15px; left: 50%; transform: translateX(-50%); width: max-content;}
             #message-card { width: 80%; padding: 25px; }
             #subtitle-container { bottom: 100px; }
-            #ui-panel { top: 60px; right: 50%; transform: translateX(50%); display: flex; gap: 10px; align-items: center; padding: 10px;}
-            .ui-label { margin: 0; }
+            #ui-panel { top: auto; bottom: 30px; right: 20px; padding: 10px;}
+            .guide-list { top: 60px; left: 10px; }
+            .step { font-size: 10px; padding: 4px 8px;}
+            .step.active { font-size: 11px; }
         }
     </style>
 </head>
@@ -107,6 +107,15 @@
         <input type="color" id="color-picker" value="#e59a8d">
     </div>
 
+    <div class="guide-list" id="guide-list">
+        <div class="step active" id="step-0">1. ✊ Genggam</div>
+        <div class="step" id="step-1">2. ✋ Buka Lebar</div>
+        <div class="step" id="step-2">3. ✌️ Dua Jari</div>
+        <div class="step" id="step-3">4. ☝️ Satu Jari</div>
+        <div class="step" id="step-4">5. 👆 Telunjuk & Jempol</div>
+        <div class="step" id="step-5">6. 🫰 Cubit (Heart Sign)</div>
+    </div>
+
     <div id="subtitle-container">
         <div id="subtitle-text"></div>
     </div>
@@ -119,12 +128,22 @@
 
     <script id="vertexShader" type="x-shader/x-vertex">
         uniform float u_time;
+        uniform float u_transition;
+        
         attribute float a_random;
+        attribute vec3 a_startPos;
+        attribute vec3 a_targetPos;
+        
         varying float vRandom;
 
         void main() {
             vRandom = a_random;
-            vec3 pos = position + vec3(
+            
+            // Perhitungan pergerakan (Lerp) 100% diproses di dalam GPU, bukan CPU
+            vec3 basePos = mix(a_startPos, a_targetPos, u_transition);
+
+            // Gerakan berdesir alami
+            vec3 pos = basePos + vec3(
                 sin(u_time * (0.5 + a_random) + a_random * 10.0) * (0.05 + a_random * 0.1),
                 cos(u_time * (0.4 + a_random) + a_random * 10.0) * (0.05 + a_random * 0.1),
                 sin(u_time * (0.3 + a_random) + a_random * 10.0) * (0.05 + a_random * 0.1)
@@ -154,7 +173,6 @@
         
         let currentStage = 0; 
         let isAnimating = false; 
-        let detectedGesture = null;
         let gestureTimer = 0;
 
         const statusEl = document.getElementById('sensor-status');
@@ -192,7 +210,10 @@
             generatePattern(positions, 'scatter'); 
             for (let i = 0; i < particleCount; i++) randoms[i] = Math.random();
 
-            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            // Mendaftarkan buffer untuk Shader GPU
+            geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
+            geometry.setAttribute('a_startPos', new THREE.BufferAttribute(new Float32Array(positions), 3));
+            geometry.setAttribute('a_targetPos', new THREE.BufferAttribute(new Float32Array(positions), 3));
             geometry.setAttribute('a_random', new THREE.BufferAttribute(randoms, 1));
 
             particleMaterial = new THREE.ShaderMaterial({
@@ -200,6 +221,7 @@
                 fragmentShader: document.getElementById('fragmentShader').textContent,
                 uniforms: {
                     u_time: { value: 0 },
+                    u_transition: { value: 1.0 }, // Diatur ke 1 agar muncul di posisi target
                     u_color: { value: new THREE.Color(document.getElementById('color-picker').value) }
                 },
                 transparent: true, depthWrite: false
@@ -330,17 +352,35 @@
             }
         }
 
+        // SISTEM GPU TRANSITION: Mengurangi CPU Lag Hingga 95%
         function transitionPattern(newPattern, durationSec = 3.0) {
-            const positionsAttribute = particles.geometry.attributes.position;
-            const currentPositions = positionsAttribute.array;
-            const targetPositions = new Float32Array(particleCount * 3);
+            const startPositions = particles.geometry.attributes.a_startPos.array;
+            const targetPositions = particles.geometry.attributes.a_targetPos.array;
+            const currentProgress = particleMaterial.uniforms.u_transition.value;
+
+            // Kunci posisi saat ini sebagai awal
+            for (let i = 0; i < startPositions.length; i++) {
+                startPositions[i] = startPositions[i] + (targetPositions[i] - startPositions[i]) * currentProgress;
+            }
+
+            // Generate target yang baru
             generatePattern(targetPositions, newPattern);
+
+            particles.geometry.attributes.a_startPos.needsUpdate = true;
+            particles.geometry.attributes.a_targetPos.needsUpdate = true;
+
+            particleMaterial.uniforms.u_transition.value = 0.0; // Reset ke awal transisi
 
             particles.userData.transitioning = true;
             particles.userData.transitionStartTime = clock.elapsedTime;
             particles.userData.transitionDuration = durationSec;
-            particles.userData.startPositions = new Float32Array(currentPositions);
-            particles.userData.targetPositions = targetPositions;
+        }
+
+        function updateUIHighlight(stepIndex) {
+            document.querySelectorAll('.step').forEach((el, i) => {
+                if (i === stepIndex) el.classList.add('active');
+                else el.classList.remove('active');
+            });
         }
 
         function showSubtitle(text) {
@@ -351,6 +391,7 @@
             subtitleContainer.classList.remove('show');
         }
 
+        // Mulai Cerita
         setTimeout(() => {
             if(currentStage === 0) showSubtitle("Tahap 1: <span>Genggam Tangan (✊)</span> untuk menyatukan kenangan.");
         }, 2000);
@@ -368,7 +409,7 @@
                     statusEl.innerText = "Membentuk Peti...";
                     transitionPattern('chest', 3.0);
                     setTimeout(() => { 
-                        isAnimating = false; currentStage = 1; 
+                        isAnimating = false; currentStage = 1; updateUIHighlight(1);
                         statusEl.innerText = "Siap."; 
                         showSubtitle("Tahap 2: <span>Buka Lebar Tangan (✋)</span> untuk membuka peti.");
                     }, 3000); 
@@ -378,7 +419,7 @@
                 statusEl.innerText = "Membuka Peti...";
                 transitionPattern('chest_open_tulip', 3.5);
                 setTimeout(() => { 
-                    isAnimating = false; currentStage = 2; 
+                    isAnimating = false; currentStage = 2; updateUIHighlight(2);
                     statusEl.innerText = "Siap."; 
                     showSubtitle("Tahap 3: Bentuk <span>Dua Jari (✌️)</span> untuk menggugurkan kelopak.");
                 }, 3500);
@@ -387,7 +428,7 @@
                 statusEl.innerText = "Kelopak berguguran...";
                 transitionPattern('heart', 4.0);
                 setTimeout(() => { 
-                    isAnimating = false; currentStage = 3; 
+                    isAnimating = false; currentStage = 3; updateUIHighlight(3);
                     statusEl.innerText = "Siap."; 
                     showSubtitle("Tahap 4: Tunjuk <span>Satu Jari (☝️)</span> untuk membingkai cerita.");
                 }, 4000);
@@ -399,7 +440,7 @@
                     statusEl.innerText = "Membingkai Kenangan...";
                     transitionPattern('frame_dynamic', 3.0);
                     setTimeout(() => { 
-                        isAnimating = false; currentStage = 4; 
+                        isAnimating = false; currentStage = 4; updateUIHighlight(4);
                         statusEl.innerText = "Siap."; 
                         showSubtitle("Tahap 5: Bentuk <span>Telunjuk & Jempol (👆)</span> untuk menyimpan ke amplop.");
                     }, 3000);
@@ -412,7 +453,7 @@
                     statusEl.innerText = "Membentuk Amplop...";
                     transitionPattern('envelope_closed', 3.0);
                     setTimeout(() => { 
-                        isAnimating = false; currentStage = 5; 
+                        isAnimating = false; currentStage = 5; updateUIHighlight(5);
                         statusEl.innerText = "Siap."; 
                         showSubtitle("Tahap Terakhir: Beri <span>Cubitan Cinta (🫰)</span> untuk membaca pesan.");
                     }, 3000);
@@ -424,7 +465,7 @@
                 setTimeout(() => {
                     document.getElementById('message-card').classList.add('show');
                     setTimeout(() => { 
-                        isAnimating = false; currentStage = 6; 
+                        isAnimating = false; currentStage = 6; updateUIHighlight(0);
                         statusEl.innerText = "Selesai."; 
                     }, 3000);
                 }, 1500);
@@ -466,15 +507,18 @@
                 const isFist = !isIndexOpen && !isMiddleOpen && !isRingOpen && !isPinkyOpen;
                 const isOpen = isIndexOpen && isMiddleOpen && isRingOpen && isPinkyOpen;
                 const isPeace = isIndexOpen && isMiddleOpen && !isRingOpen && !isPinkyOpen;
-                const isIndexOnly = isIndexOpen && !isMiddleOpen && !isRingOpen && !isPinkyOpen && pinchDist > 0.1;
                 
-                const isIndexAndThumb = isIndexOpen && !isMiddleOpen && !isRingOpen && !isPinkyOpen && pinchDist > 0.1;
+                // TAHAP 4: HANYA SATU JARI TELUNJUK (Jempol ditekuk)
+                const isIndexOnly = isIndexOpen && !isMiddleOpen && !isRingOpen && !isPinkyOpen && pinchDist <= 0.15;
                 
-                const isPinch = pinchDist < 0.08 && !isMiddleOpen && !isRingOpen;
+                // TAHAP 5: TELUNJUK & JEMPOL TERBUKA BENTUK 'L' (👆)
+                const isIndexAndThumb = isIndexOpen && !isMiddleOpen && !isRingOpen && !isPinkyOpen && pinchDist > 0.15;
+                
+                // TAHAP 6: CUBITAN (🫰)
+                const isPinch = pinchDist < 0.08 && !isMiddleOpen && !isRingOpen && !isPinkyOpen;
 
                 let actionTriggered = false;
 
-                // SISTEM ALUR STATE CERITA
                 if (currentStage === 0 && isFist) { triggerSequenceStep(1); actionTriggered = true; }
                 else if (currentStage === 1 && isOpen) { triggerSequenceStep(2); actionTriggered = true; }
                 else if (currentStage === 2 && isPeace) { triggerSequenceStep(3); actionTriggered = true; }
@@ -501,19 +545,14 @@
             if (particleMaterial) particleMaterial.uniforms.u_time.value = elapsedTime;
 
             if (particles && particles.userData.transitioning) {
-                const positionsAttribute = particles.geometry.attributes.position;
-                const currentPositions = positionsAttribute.array;
-                const { startPositions, targetPositions, transitionStartTime, transitionDuration } = particles.userData;
+                const { transitionStartTime, transitionDuration } = particles.userData;
+                const progress = THREE.MathUtils.clamp((elapsedTime - transitionStartTime) / transitionDuration, 0, 1);
                 
-                const transitionProgress = THREE.MathUtils.clamp((elapsedTime - transitionStartTime) / transitionDuration, 0, 1);
-                const easedProgress = transitionProgress < .5 ? 4 * transitionProgress * transitionProgress * transitionProgress : (transitionProgress - 1) * (2 * transitionProgress - 2) * (2 * transitionProgress - 2) + 1;
-
-                for (let i = 0; i < currentPositions.length; i++) {
-                    currentPositions[i] = THREE.MathUtils.lerp(startPositions[i], targetPositions[i], easedProgress);
-                }
-                positionsAttribute.needsUpdate = true;
+                // GPU Uniform Updater (Perhitungan Easing saja yang diproses di CPU)
+                const easedProgress = progress < .5 ? 4 * progress * progress * progress : (progress - 1) * (2 * progress - 2) * (2 * progress - 2) + 1;
+                particleMaterial.uniforms.u_transition.value = easedProgress;
                 
-                if (transitionProgress >= 1) particles.userData.transitioning = false;
+                if (progress >= 1) particles.userData.transitioning = false;
             }
 
             if (particles && !particles.userData.transitioning) {

@@ -12,30 +12,28 @@
         }
         canvas { display: block; }
         
+        /* Panel Settings Kecil di Kanan Atas (Hanya untuk Warna) */
         #ui-panel {
-            position: absolute; top: 20px; right: 20px; width: 280px;
+            position: absolute; top: 20px; right: 20px; width: max-content;
             background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px); border-radius: 15px; padding: 20px;
-            border: 1px rgba(255, 255, 255, 0.1) solid; box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            border-radius: 10px; padding: 15px; border: 1px rgba(255, 255, 255, 0.1) solid;
             z-index: 100;
         }
+        .ui-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: rgba(255, 255, 255, 0.6); margin-bottom: 5px; display: block;}
+        input[type="color"] { border: none; width: 100px; height: 30px; border-radius: 5px; cursor: pointer; background: none; }
 
-        .gesture-guide {
-            font-size: 13px; color: rgba(255,255,255,0.4); margin-bottom: 15px;
-            line-height: 1.8; display: flex; flex-direction: column; gap: 8px;
+        /* Subtitle Sinematik di Bawah */
+        #subtitle-container {
+            position: absolute; bottom: 120px; left: 50%; transform: translateX(-50%);
+            text-align: center; z-index: 120; width: 90%; max-width: 500px;
+            background: rgba(0,0,0,0.5); padding: 12px 20px; border-radius: 30px;
+            border: 1px solid rgba(229, 154, 141, 0.4); backdrop-filter: blur(5px);
+            transition: opacity 0.8s ease, transform 0.8s ease; opacity: 0; pointer-events: none;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
-        .step {
-            transition: all 0.3s ease; padding: 5px; border-radius: 5px;
-        }
-        .step.active {
-            color: white; background: rgba(229, 154, 141, 0.2);
-            border-left: 3px solid #e59a8d; text-shadow: 0 0 5px rgba(229, 154, 141, 0.5);
-        }
-        .step span { font-weight: bold; color: #e59a8d; }
-
-        .ui-group { display: flex; flex-direction: column; gap: 5px; margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;}
-        .ui-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: rgba(255, 255, 255, 0.6); }
-        input[type="color"] { border: none; width: 100%; height: 35px; border-radius: 5px; cursor: pointer; background: none; }
+        #subtitle-container.show { opacity: 1; transform: translateX(-50%) translateY(-10px); }
+        #subtitle-text { color: rgba(255,255,255,0.9); font-size: 14px; letter-spacing: 1px; line-height: 1.5; }
+        #subtitle-text span { color: #e59a8d; font-weight: bold; font-size: 16px;}
         
         #branding {
             position: absolute; bottom: 30px; left: 0; width: 100%; text-align: center;
@@ -60,7 +58,7 @@
 
         /* KARTU PESAN */
         #message-card {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -45%);
+            position: absolute; top: 45%; left: 50%; transform: translate(-50%, -40%);
             width: 320px; background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
             border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 12px;
@@ -74,12 +72,13 @@
         #message-card .author { margin-top: 15px; font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px;}
 
         @media (max-width: 600px) {
-            #ui-panel { top: auto; bottom: 90px; right: 50%; transform: translateX(50%); width: 85%; }
-            #branding { bottom: 15px; }
             #branding h1 { font-size: 22px; }
             #branding p { font-size: 11px; }
             #sensor-status { top: 15px; left: 50%; transform: translateX(-50%); width: max-content;}
             #message-card { width: 80%; padding: 25px; }
+            #subtitle-container { bottom: 100px; }
+            #ui-panel { top: 60px; right: 50%; transform: translateX(50%); display: flex; gap: 10px; align-items: center; padding: 10px;}
+            .ui-label { margin: 0; }
         }
     </style>
 </head>
@@ -99,18 +98,12 @@
     </div>
 
     <div id="ui-panel">
-        <div class="gesture-guide" id="guide-list">
-            <div class="step active" id="step-0">1. ✊ Genggam = <span>Kumpul jadi Peti</span></div>
-            <div class="step" id="step-1">2. ✋ Buka Lebar = <span>Peti Terbuka & Tulip</span></div>
-            <div class="step" id="step-2">3. ✌️ Dua Jari = <span>Gugur jadi Hati</span></div>
-            <div class="step" id="step-3">4. ☝️ Satu Jari = <span>Bingkai Memori</span></div>
-            <div class="step" id="step-4">5. ☝️ Satu Jari (Lagi) = <span>Pecah jadi Amplop</span></div>
-            <div class="step" id="step-5">6. 🫰 Cubit (Jempol+Telunjuk) = <span>Buka Pesan Kenangan</span></div>
-        </div>
-        <div class="ui-group">
-            <div class="ui-label">Warna Partikel</div>
-            <input type="color" id="color-picker" value="#e59a8d">
-        </div>
+        <label class="ui-label">Warna Partikel</label>
+        <input type="color" id="color-picker" value="#e59a8d">
+    </div>
+
+    <div id="subtitle-container">
+        <div id="subtitle-text"></div>
     </div>
 
     <video id="webcam" autoplay playsinline muted style="display: none;"></video>
@@ -162,6 +155,8 @@
         let detectedGesture = null;
 
         const statusEl = document.getElementById('sensor-status');
+        const subtitleContainer = document.getElementById('subtitle-container');
+        const subtitleText = document.getElementById('subtitle-text');
 
         initThree();
         createParticles();
@@ -232,62 +227,101 @@
                         break;
 
                     case 'chest': 
-                        let face = Math.floor(Math.random() * 6);
-                        let cx = (Math.random()-0.5)*3.0; 
-                        let cy = (Math.random()-0.5)*2.0; 
-                        let cz = (Math.random()-0.5)*2.0; 
-                        if (face===0) { x=1.5; y=cy; z=cz; }
-                        else if (face===1) { x=-1.5; y=cy; z=cz; }
-                        else if (face===2) { x=cx; y=1.0; z=cz; }
-                        else if (face===3) { x=cx; y=-1.0; z=cz; }
-                        else if (face===4) { x=cx; y=cy; z=1.0; }
-                        else { x=cx; y=cy; z=-1.0; }
+                        // --- PETI DETAIL TERTUTUP ---
+                        const pC = Math.random();
+                        if (pC < 0.6) {
+                            // Dasar Peti (Box)
+                            let face = Math.floor(Math.random() * 6);
+                            let cx = (Math.random()-0.5)*2.4; 
+                            let cy = (Math.random()-0.5)*1.2 - 0.5; 
+                            let cz = (Math.random()-0.5)*1.6; 
+                            if (face===0) { x=1.2; y=cy; z=cz; } else if (face===1) { x=-1.2; y=cy; z=cz; }
+                            else if (face===2) { x=cx; y=0.1; z=cz; } else if (face===3) { x=cx; y=-1.1; z=cz; }
+                            else if (face===4) { x=cx; y=cy; z=0.8; } else { x=cx; y=cy; z=-0.8; }
+                        } else if (pC < 0.95) {
+                            // Tutup Peti (Silinder Melengkung)
+                            let theta = Math.PI * rand1; // Setengah lingkaran atas
+                            let len = (rand2 - 0.5) * 2.4;
+                            x = len;
+                            y = 0.1 + 0.8 * Math.sin(theta); // Melengkung ke atas
+                            z = 0.8 * Math.cos(theta);
+                        } else {
+                            // Detail Kunci Depan
+                            x = (Math.random()-0.5)*0.3;
+                            y = 0.0 + (Math.random()-0.5)*0.3;
+                            z = 0.85 + (Math.random()*0.1);
+                        }
                         break;
                         
                     case 'chest_open_tulip': 
-                        if (Math.random() < 0.2) {
-                            let f = Math.floor(Math.random() * 6);
-                            let sx = (Math.random()-0.5)*1.5;
-                            let sy = (Math.random()-0.5)*1.0;
-                            let sz = (Math.random()-0.5)*1.0;
-                            if (f===0) { x=0.75; y=sy; z=sz; } else if (f===1) { x=-0.75; y=sy; z=sz; }
-                            else if (f===2) { x=sx; y=0.5; z=sz; } else if (f===3) { x=sx; y=-0.5; z=sz; }
-                            else if (f===4) { x=sx; y=sy; z=0.5; } else { x=sx; y=sy; z=-0.5; }
-                            y -= 2.0; 
+                        if (Math.random() < 0.3) {
+                            // --- PETI TERBUKA (Kecil di bawah) ---
+                            let isLid = Math.random() > 0.6;
+                            if(!isLid) {
+                                let f = Math.floor(Math.random() * 6);
+                                let cx = (Math.random()-0.5)*2.4; 
+                                let cy = (Math.random()-0.5)*1.2 - 0.5; 
+                                let cz = (Math.random()-0.5)*1.6; 
+                                if (f===0) { x=1.2; y=cy; z=cz; } else if (f===1) { x=-1.2; y=cy; z=cz; }
+                                else if (f===2) { x=cx; y=0.1; z=cz; } else if (f===3) { x=cx; y=-1.1; z=cz; }
+                                else if (f===4) { x=cx; y=cy; z=0.8; } else { x=cx; y=cy; z=-0.8; }
+                            } else {
+                                // Tutup Peti (Diputar 110 derajat ke belakang)
+                                let theta = Math.PI * rand1; 
+                                let len = (rand2 - 0.5) * 2.4;
+                                let origY = 0.8 * Math.sin(theta);
+                                let origZ = 0.8 * Math.cos(theta);
+                                // Rotasi Engsel (z=-0.8, y=0.1)
+                                let angle = 2.0; // ~115 derajat
+                                x = len;
+                                y = 0.1 + origY * Math.cos(angle) - (origZ+0.8) * Math.sin(angle);
+                                z = -0.8 + origY * Math.sin(angle) + (origZ+0.8) * Math.cos(angle);
+                            }
+                            y -= 2.0; // Geser ke bawah layar
                         } else {
+                            // --- BUNGA TULIP DI TENGAH ---
                             const part = Math.random();
+                            const scaleF = 0.8; // Skala tulip sedikit diperkecil agar pas
                             if (part < 0.6) { 
                                 const u = rand1, v = rand2 * Math.PI * 2;
                                 const rProfile = Math.pow(u, 0.4) * (1.2 - u * 0.4); 
                                 const petals = 1.0 + 0.15 * Math.sin(6 * v) * u;
-                                const R = rProfile * petals * (0.85 + 0.15 * Math.random());
+                                const R = rProfile * petals * (0.85 + 0.15 * Math.random()) * scaleF;
                                 x = R * Math.cos(v); z = R * Math.sin(v);
-                                y = (u * 1.8) + (Math.abs(Math.sin(3 * v)) * 0.3 * Math.pow(u, 2)) - 0.2; 
+                                y = ((u * 1.8) + (Math.abs(Math.sin(3 * v)) * 0.3 * Math.pow(u, 2))) * scaleF; 
                             } else if (part < 0.7) { 
                                 const u = rand1, theta = rand2 * Math.PI * 2;
-                                y = -0.2 - u * 2.8; 
-                                const r = 0.04 + Math.random() * 0.04; 
+                                y = (-u * 2.8) * scaleF; 
+                                const r = (0.04 + Math.random() * 0.04) * scaleF; 
                                 x = r * Math.cos(theta) + Math.sin(u * 2.0) * 0.05; 
                                 z = r * Math.sin(theta);
                             } else { 
                                 const u = rand1, v = rand2; 
-                                const spineX = Math.pow(u, 1.5) * 1.5, spineY = -2.0 + u * 2.5, spineZ = Math.sin(u * Math.PI) * 0.4; 
-                                const leafWidth = Math.sin(u * Math.PI) * 0.5 * (1.0 - u * 0.2);
+                                const spineX = Math.pow(u, 1.5) * 1.5 * scaleF;
+                                const spineY = (-2.0 + u * 2.5) * scaleF;
+                                const spineZ = Math.sin(u * Math.PI) * 0.4 * scaleF; 
+                                const leafWidth = Math.sin(u * Math.PI) * 0.5 * (1.0 - u * 0.2) * scaleF;
                                 x = spineX + (v - 0.5) * leafWidth * 0.6;
                                 y = spineY + Math.sin(v * Math.PI) * 0.15;
                                 z = spineZ + (v - 0.5) * leafWidth;
                             }
-                            y += 1.0; 
+                            y += 0.5; // Angkat Tulip agar seolah keluar dari peti
                         }
                         break;
 
                     case 'heart':
+                        // --- HATI 3D (VOLUMETRIC PUFFY) ---
                         const tH = rand2 * Math.PI * 2;
                         const rH = Math.sqrt(rand1); 
                         const scaleH = 0.08;
                         x = rH * 16 * Math.pow(Math.sin(tH), 3) * scaleH;
                         y = rH * (13 * Math.cos(tH) - 5 * Math.cos(2*tH) - 2 * Math.cos(3*tH) - Math.cos(4*tH)) * scaleH;
-                        z = (Math.random() - 0.5) * 0.2; 
+                        
+                        // Menambahkan ketebalan 3D (puffy pillow effect)
+                        // Semakin ke tengah (rH mendekati 0), semakin tebal.
+                        const thickness3D = Math.sqrt(Math.max(0, 1.0 - rH*rH)) * 0.6;
+                        z = (Math.random() - 0.5) * thickness3D; 
+                        
                         y += 0.2; 
                         break;
 
@@ -304,8 +338,9 @@
                             else if (edge < 0.5) { x = (Math.random()-0.5) * wOuter * 2; y = -hOuter + Math.random() * thick; }
                             else if (edge < 0.75) { x = -wOuter + Math.random() * thick; y = (Math.random()-0.5) * hOuter * 2; }
                             else { x = wOuter - Math.random() * thick; y = (Math.random()-0.5) * hOuter * 2; }
-                            z = (Math.random() - 0.5) * 0.15;
+                            z = (Math.random() - 0.5) * 0.2; // Sedikit diberi tebal
                         } else { 
+                            // Partikel kenangan di dalam bingkai
                             x = (Math.random() - 0.5) * 2.0;
                             y = (Math.random() - 0.5) * 2.8;
                             z = (Math.random() - 0.5) * 0.5;
@@ -353,17 +388,25 @@
             particles.userData.targetPositions = targetPositions;
         }
 
-        function updateUIHighlight(stepIndex) {
-            document.querySelectorAll('.step').forEach((el, i) => {
-                if (i === stepIndex) el.classList.add('active');
-                else el.classList.remove('active');
-            });
+        // FUNGSI PANDUAN SUBTITLE
+        function showSubtitle(text) {
+            subtitleText.innerHTML = text;
+            subtitleContainer.classList.add('show');
         }
+        function hideSubtitle() {
+            subtitleContainer.classList.remove('show');
+        }
+
+        // Inisialisasi subtitle pertama
+        setTimeout(() => {
+            if(currentStage === 0) showSubtitle("Tahap 1: <span>Genggam Tangan (✊)</span> untuk menyatukan kenangan.");
+        }, 2000);
 
         function triggerSequenceStep(stepTarget) {
             if (isAnimating) return;
             isAnimating = true;
             statusEl.style.color = "#e59a8d";
+            hideSubtitle(); // Sembunyikan subtitle saat animasi berjalan
 
             if (stepTarget === 1) {
                 statusEl.innerText = "Mengumpulkan debu...";
@@ -371,18 +414,30 @@
                 setTimeout(() => {
                     statusEl.innerText = "Membentuk Peti...";
                     transitionPattern('chest', 1.5);
-                    setTimeout(() => { isAnimating = false; currentStage = 1; updateUIHighlight(1); statusEl.innerText = "Siap."; }, 1500);
+                    setTimeout(() => { 
+                        isAnimating = false; currentStage = 1; 
+                        statusEl.innerText = "Siap."; 
+                        showSubtitle("Tahap 2: <span>Buka Lebar Tangan (✋)</span> untuk membuka peti.");
+                    }, 1500);
                 }, 500);
             } 
             else if (stepTarget === 2) {
                 statusEl.innerText = "Membuka Peti...";
                 transitionPattern('chest_open_tulip', 2.0);
-                setTimeout(() => { isAnimating = false; currentStage = 2; updateUIHighlight(2); statusEl.innerText = "Siap."; }, 2000);
+                setTimeout(() => { 
+                    isAnimating = false; currentStage = 2; 
+                    statusEl.innerText = "Siap."; 
+                    showSubtitle("Tahap 3: Bentuk <span>Dua Jari (✌️)</span> untuk menggugurkan kelopak.");
+                }, 2000);
             }
             else if (stepTarget === 3) {
                 statusEl.innerText = "Kelopak berguguran...";
                 transitionPattern('heart', 2.5);
-                setTimeout(() => { isAnimating = false; currentStage = 3; updateUIHighlight(3); statusEl.innerText = "Siap."; }, 2500);
+                setTimeout(() => { 
+                    isAnimating = false; currentStage = 3; 
+                    statusEl.innerText = "Siap."; 
+                    showSubtitle("Tahap 4: Tunjuk <span>Satu Jari (☝️)</span> untuk membingkai cerita.");
+                }, 2500);
             }
             else if (stepTarget === 4) {
                 statusEl.innerText = "Membesarkan Hati...";
@@ -390,7 +445,11 @@
                 setTimeout(() => {
                     statusEl.innerText = "Membingkai Kenangan...";
                     transitionPattern('frame_dynamic', 1.5);
-                    setTimeout(() => { isAnimating = false; currentStage = 4; updateUIHighlight(4); statusEl.innerText = "Siap."; }, 1500);
+                    setTimeout(() => { 
+                        isAnimating = false; currentStage = 4; 
+                        statusEl.innerText = "Siap."; 
+                        showSubtitle("Tahap 5: Tunjuk <span>Satu Jari (☝️)</span> lagi untuk menyimpan ke amplop.");
+                    }, 1500);
                 }, 600);
             }
             else if (stepTarget === 5) {
@@ -399,7 +458,11 @@
                 setTimeout(() => {
                     statusEl.innerText = "Membentuk Amplop...";
                     transitionPattern('envelope_closed', 1.5);
-                    setTimeout(() => { isAnimating = false; currentStage = 5; updateUIHighlight(5); statusEl.innerText = "Siap."; }, 1500);
+                    setTimeout(() => { 
+                        isAnimating = false; currentStage = 5; 
+                        statusEl.innerText = "Siap."; 
+                        showSubtitle("Tahap Terakhir: Beri <span>Cubitan Cinta (🫰)</span> untuk membaca pesan.");
+                    }, 1500);
                 }, 600);
             }
             else if (stepTarget === 6) {
@@ -407,7 +470,10 @@
                 transitionPattern('envelope_open', 1.5);
                 setTimeout(() => {
                     document.getElementById('message-card').classList.add('show');
-                    setTimeout(() => { isAnimating = false; currentStage = 6; updateUIHighlight(0); statusEl.innerText = "Selesai."; }, 3000);
+                    setTimeout(() => { 
+                        isAnimating = false; currentStage = 6; 
+                        statusEl.innerText = "Selesai."; 
+                    }, 3000);
                 }, 1000);
             }
         }
@@ -442,15 +508,12 @@
                 const isRingOpen = landmarks[16].y < landmarks[14].y;
                 const isPinkyOpen = landmarks[20].y < landmarks[18].y;
                 
-                // Menghitung jarak antara ujung jempol dan ujung telunjuk
                 const pinchDist = Math.hypot(landmarks[4].x - landmarks[8].x, landmarks[4].y - landmarks[8].y);
 
                 const isFist = !isIndexOpen && !isMiddleOpen && !isRingOpen && !isPinkyOpen;
                 const isOpen = isIndexOpen && isMiddleOpen && isRingOpen && isPinkyOpen;
                 const isPeace = isIndexOpen && isMiddleOpen && !isRingOpen && !isPinkyOpen;
                 const isIndexOnly = isIndexOpen && !isMiddleOpen && !isRingOpen && !isPinkyOpen && pinchDist > 0.1;
-                
-                // Logika gestur cubit (🫰)
                 const isPinch = pinchDist < 0.08 && !isMiddleOpen && !isRingOpen;
 
                 let actionTriggered = false;
@@ -459,11 +522,7 @@
                 else if (currentStage === 1 && isOpen) { triggerSequenceStep(2); actionTriggered = true; }
                 else if (currentStage === 2 && isPeace) { triggerSequenceStep(3); actionTriggered = true; }
                 else if (currentStage === 3 && isIndexOnly) { triggerSequenceStep(4); actionTriggered = true; }
-                
-                // TAHAP 5 = SATU JARI 👆
-                else if (currentStage === 4 && isIndexOnly) { triggerSequenceStep(5); actionTriggered = true; }
-                
-                // TAHAP 6 = CUBIT 🫰
+                else if (currentStage === 4 && isIndexOnly) { triggerSequenceStep(5); actionTriggered = true; } 
                 else if (currentStage === 5 && isPinch) { triggerSequenceStep(6); actionTriggered = true; } 
                 
                 if (actionTriggered) {
@@ -502,7 +561,7 @@
 
             if (particles && !particles.userData.transitioning) {
                 if (currentStage === 1) {
-                    particles.rotation.y += 0.03;
+                    particles.rotation.y += 0.02;
                     particles.rotation.x = 0; particles.rotation.z = 0;
                 } else if (currentStage === 5) {
                     particles.rotation.y += 0.01;

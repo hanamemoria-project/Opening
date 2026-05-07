@@ -21,15 +21,23 @@
         .ui-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: rgba(255, 255, 255, 0.6); margin-bottom: 5px; display: block;}
         input[type="color"] { border: none; width: 100px; height: 30px; border-radius: 5px; cursor: pointer; background: none; }
 
+        /* Subtitle Sinematik di Bawah (Versi Optimal Anti-Lag) */
         #subtitle-container {
-            position: absolute; bottom: 120px; left: 50%; transform: translateX(-50%);
+            position: absolute; bottom: 120px; left: 50%; 
+            transform: translate3d(-50%, 0, 0); /* Memaksa render menggunakan GPU */
             text-align: center; z-index: 120; width: 90%; max-width: 500px;
-            background: rgba(0,0,0,0.5); padding: 12px 20px; border-radius: 30px;
-            border: 1px solid rgba(229, 154, 141, 0.4); backdrop-filter: blur(5px);
-            transition: opacity 0.8s ease, transform 0.8s ease; opacity: 0; pointer-events: none;
+            background: rgba(15, 15, 20, 0.85); /* Solid transparan, bukan blur */
+            padding: 12px 20px; border-radius: 30px;
+            border: 1px solid rgba(229, 154, 141, 0.3); 
+            transition: opacity 0.4s ease, transform 0.4s ease; 
+            opacity: 0; pointer-events: none;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            will-change: opacity, transform; /* Persiapan memori hardware */
         }
-        #subtitle-container.show { opacity: 1; transform: translateX(-50%) translateY(-10px); }
+        #subtitle-container.show { 
+            opacity: 1; 
+            transform: translate3d(-50%, -10px, 0); 
+        }
         #subtitle-text { color: rgba(255,255,255,0.9); font-size: 14px; letter-spacing: 1px; line-height: 1.5; }
         #subtitle-text span { color: #e59a8d; font-weight: bold; font-size: 16px;}
         
@@ -393,7 +401,6 @@
                     setTimeout(() => { 
                         isAnimating = false; currentStage = 4; 
                         statusEl.innerText = "Siap."; 
-                        // MENGUBAH TEKS PANDUAN TAHAP 5 MENJADI TELUNJUK & JEMPOL (👆)
                         showSubtitle("Tahap 5: Bentuk <span>Telunjuk & Jempol (👆)</span> untuk menyimpan ke amplop.");
                     }, 3000);
                 }, 1000);
@@ -461,14 +468,13 @@
                 const isPeace = isIndexOpen && isMiddleOpen && !isRingOpen && !isPinkyOpen;
                 const isIndexOnly = isIndexOpen && !isMiddleOpen && !isRingOpen && !isPinkyOpen && pinchDist > 0.1;
                 
-                // MENDETEKSI GESTUR TAHAP 5 (TELUNJUK & JEMPOL TERBUKA / 👆)
-                // Deteksi ini diaktifkan ketika telunjuk terbuka dan jempol berjauhan dari pangkalnya (pinchDist yang besar)
                 const isIndexAndThumb = isIndexOpen && !isMiddleOpen && !isRingOpen && !isPinkyOpen && pinchDist > 0.1;
                 
                 const isPinch = pinchDist < 0.08 && !isMiddleOpen && !isRingOpen;
 
                 let actionTriggered = false;
 
+                // SISTEM ALUR STATE CERITA
                 if (currentStage === 0 && isFist) { triggerSequenceStep(1); actionTriggered = true; }
                 else if (currentStage === 1 && isOpen) { triggerSequenceStep(2); actionTriggered = true; }
                 else if (currentStage === 2 && isPeace) { triggerSequenceStep(3); actionTriggered = true; }

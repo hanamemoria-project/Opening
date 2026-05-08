@@ -24,11 +24,12 @@
         #subtitle-container {
             position: absolute; bottom: 120px; left: 50%; transform: translate3d(-50%, 0, 0);
             text-align: center; z-index: 120; width: 90%; max-width: 500px;
-            background: rgba(15, 15, 20, 0.9); padding: 12px 20px; border-radius: 30px;
-            border: 1px solid rgba(229, 154, 141, 0.3); transition: opacity 0.5s ease; 
-            opacity: 0; pointer-events: none; will-change: opacity;
+            background: rgba(15, 15, 20, 0.85); padding: 12px 20px; border-radius: 30px;
+            border: 1px solid rgba(229, 154, 141, 0.3); transition: opacity 0.4s ease, transform 0.4s ease; 
+            opacity: 0; pointer-events: none; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            will-change: opacity, transform;
         }
-        #subtitle-container.show { opacity: 1; }
+        #subtitle-container.show { opacity: 1; transform: translate3d(-50%, -10px, 0); }
         #subtitle-text { color: rgba(255,255,255,0.9); font-size: 14px; letter-spacing: 1px; line-height: 1.5; }
         #subtitle-text span { color: #e59a8d; font-weight: bold; font-size: 16px;}
         
@@ -51,32 +52,44 @@
             background: #080810; display: flex; flex-direction: column; justify-content: center; align-items: center;
             font-size: 18px; font-weight: 200; letter-spacing: 2px; z-index: 200; transition: opacity 0.5s; text-align: center;
         }
+        #loading.fade-out { opacity: 0; pointer-events: none; }
 
         #message-card {
             position: absolute; top: 45%; left: 50%; transform: translate(-50%, -40%);
             width: 320px; background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 12px;
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 12px;
             padding: 30px; text-align: center; color: white;
-            opacity: 0; pointer-events: none; transition: opacity 1s ease-out; z-index: 150;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            opacity: 0; pointer-events: none; transition: all 1s ease-out; z-index: 150;
         }
-        #message-card.show { opacity: 1; pointer-events: auto; }
+        #message-card.show { opacity: 1; transform: translate(-50%, -50%); pointer-events: auto; }
+        #message-card h3 { margin: 0 0 10px 0; font-family: serif; color: #e59a8d; font-size: 22px; font-weight: 500;}
+        #message-card p { margin: 0; font-size: 15px; line-height: 1.6; font-weight: 300; font-style: italic;}
+        #message-card .author { margin-top: 15px; font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px;}
 
         .guide-list { position: absolute; left: 20px; top: 70px; display: flex; flex-direction: column; gap: 5px; pointer-events: none; z-index: 90;}
-        .step { font-size: 11px; color: rgba(255,255,255,0.3); padding: 5px 10px; border-radius: 5px; transition: all 0.3s; transform-origin: left center;}
+        .step { font-size: 11px; color: rgba(255,255,255,0.3); padding: 5px 10px; border-radius: 5px; transition: color 0.3s, background 0.3s, transform 0.3s; transform-origin: left center;}
         .step.active { color: white; background: rgba(229, 154, 141, 0.2); border-left: 3px solid #e59a8d; transform: scale(1.05); }
+        .step span { color: #e59a8d; font-weight: bold; }
 
         @media (max-width: 600px) {
             #branding h1 { font-size: 22px; }
             #branding p { font-size: 11px; }
             #sensor-status { top: 15px; left: 50%; transform: translateX(-50%); width: max-content;}
+            #message-card { width: 80%; padding: 25px; }
             #subtitle-container { bottom: 100px; }
             #ui-panel { top: auto; bottom: 30px; right: 20px; padding: 10px;}
             .guide-list { top: 60px; left: 10px; }
+            .step { font-size: 10px; padding: 4px 8px;}
         }
     </style>
 </head>
 <body>
-    <div id="loading">Memproses Memori Visual...<br><span style="font-size: 12px; opacity: 0.5; margin-top: 10px; display: block;">Mempersiapkan sensor presisi</span></div>
+    <div id="loading">
+        Membangun Memori Visual...<br>
+        <span id="loading-progress" style="font-size: 12px; opacity: 0.5; margin-top: 10px; display: block;">0%</span>
+    </div>
     <div id="sensor-status" style="color: #ffaaaa;">Kamera Belum Aktif</div>
     
     <div id="branding">
@@ -85,9 +98,9 @@
     </div>
 
     <div id="message-card">
-        <h3 style="margin: 0 0 10px 0; font-family: serif; color: #e59a8d;">Halo, Kenangan Terindah.</h3>
-        <p style="margin: 0; font-size: 15px; line-height: 1.6; font-weight: 300; font-style: italic;">"Seperti debu bintang yang melayang, cerita kita akan selalu menemukan jalannya untuk berkumpul, bersemi, dan abadi dalam satu ruang di hati."</p>
-        <div style="margin-top: 15px; font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px;">- Hana Memoria</div>
+        <h3>Halo, Kenangan Terindah.</h3>
+        <p>"Seperti debu bintang yang melayang, cerita kita akan selalu menemukan jalannya untuk berkumpul, bersemi, dan abadi dalam satu ruang di hati."</p>
+        <div class="author">- Hana Memoria</div>
     </div>
 
     <div id="ui-panel">
@@ -121,33 +134,47 @@
         attribute vec3 a_startPos;
         attribute vec3 a_targetPos;
         varying float vRandom;
+
         void main() {
             vRandom = a_random;
             vec3 basePos = mix(a_startPos, a_targetPos, u_transition);
+            
+            // Efek berdesir pelan
             vec3 pos = basePos + vec3(
-                sin(u_time * (0.5 + a_random) + a_random * 10.0) * 0.08,
-                cos(u_time * (0.4 + a_random) + a_random * 10.0) * 0.08,
-                sin(u_time * (0.3 + a_random) + a_random * 10.0) * 0.08
+                sin(u_time * 0.5 + a_random * 10.0) * 0.05,
+                cos(u_time * 0.4 + a_random * 10.0) * 0.05,
+                sin(u_time * 0.3 + a_random * 10.0) * 0.05
             );
+            
             vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
-            gl_PointSize = 0.35 * (1.0 + a_random) * (100.0 / -mvPosition.z);
+            
+            // Variasi ukuran partikel agar teksturnya tebal seperti mawar
+            gl_PointSize = (2.0 + a_random * 2.0) * (10.0 / -mvPosition.z);
             gl_Position = projectionMatrix * mvPosition;
         }
     </script>
     <script id="fragmentShader" type="x-shader/x-fragment">
         uniform vec3 u_color;
+        uniform float u_time;
         varying float vRandom;
+        
         void main() {
+            // Membentuk partikel membulat dengan inti bersinar
             float dist = distance(gl_PointCoord, vec2(0.5));
-            float alpha = smoothstep(0.5, 0.2, dist);
+            float alpha = smoothstep(0.5, 0.1, dist);
             if (alpha < 0.05) discard;
-            gl_FragColor = vec4(u_color * (0.8 + vRandom * 0.4), alpha * 0.85); 
+            
+            // GLITTER EFFECT: Partikel berkelap-kelip secara acak seperti debu bintang
+            float sparkle = sin(u_time * 3.0 + vRandom * 100.0) * 0.5 + 0.5;
+            
+            vec3 finalColor = u_color * (0.6 + vRandom * 0.4 + sparkle * 0.4);
+            gl_FragColor = vec4(finalColor, alpha * (0.6 + sparkle * 0.4)); 
         }
     </script>
 
     <script>
         let scene, camera, renderer, clock, particles, particleMaterial;
-        let particleCount = 8000; 
+        let particleCount = 12000; // DIKEMBALIKAN KE 12000 UNTUK DETAIL MEWAH
         const patternData = {};
         const patternNames = ['scatter', 'singularity', 'chest', 'chest_open_tulip', 'heart', 'explode', 'frame_dynamic', 'shatter', 'envelope_closed', 'envelope_open'];
         let currentStage = 0, isAnimating = false; 
@@ -155,11 +182,18 @@
         const statusEl = document.getElementById('sensor-status');
         const subtitleContainer = document.getElementById('subtitle-container');
         const subtitleText = document.getElementById('subtitle-text');
+        const progressEl = document.getElementById('loading-progress');
 
-        initThree();
-        createParticles();
-        initMediaPipe();
-        animate();
+        // MENGGUNAKAN ASYNC INITIALIZATION AGAR LOADING TIDAK MACET
+        async function startApp() {
+            initThree();
+            await precalculatePatternsAsync();
+            createParticles();
+            initMediaPipe();
+            animate();
+        }
+        
+        startApp();
 
         function initThree() {
             scene = new THREE.Scene();
@@ -180,24 +214,39 @@
             });
         }
 
-        function createParticles() {
-            patternNames.forEach(name => {
+        // FUNGSI ASYNC: Memberi HP "Napas" saat menghitung partikel
+        async function precalculatePatternsAsync() {
+            let processed = 0;
+            for (let name of patternNames) {
                 const arr = new Float32Array(particleCount * 3);
                 generatePattern(arr, name);
                 patternData[name] = arr;
-            });
+                processed++;
+                progressEl.innerText = Math.round((processed / patternNames.length) * 100) + "%";
+                // Beri jeda 20 milidetik per bentuk agar layar loading tetap responsif
+                await new Promise(r => setTimeout(r, 20)); 
+            }
+        }
+
+        function createParticles() {
             const geometry = new THREE.BufferGeometry();
             const randoms = new Float32Array(particleCount);
             for (let i = 0; i < particleCount; i++) randoms[i] = Math.random();
+            
             geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(patternData['scatter']), 3));
             geometry.setAttribute('a_startPos', new THREE.BufferAttribute(new Float32Array(patternData['scatter']), 3));
             geometry.setAttribute('a_targetPos', new THREE.BufferAttribute(new Float32Array(patternData['scatter']), 3));
             geometry.setAttribute('a_random', new THREE.BufferAttribute(randoms, 1));
+            
             particleMaterial = new THREE.ShaderMaterial({
                 vertexShader: document.getElementById('vertexShader').textContent,
                 fragmentShader: document.getElementById('fragmentShader').textContent,
-                uniforms: { u_time: { value: 0 }, u_transition: { value: 1.0 }, u_color: { value: new THREE.Color(document.getElementById('color-picker').value) } },
-                transparent: true, depthWrite: false
+                uniforms: { 
+                    u_time: { value: 0 }, 
+                    u_transition: { value: 1.0 }, 
+                    u_color: { value: new THREE.Color(document.getElementById('color-picker').value) } 
+                },
+                transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
             });
             particles = new THREE.Points(geometry, particleMaterial);
             scene.add(particles);
@@ -218,12 +267,33 @@
                         } else { x=(r1-0.5)*2.4; y=0.1+0.8*Math.sin(Math.PI*r2); z=0.8*Math.cos(Math.PI*r2); }
                         break;
                     case 'chest_open_tulip': 
-                        if (r1 < 0.3) { x=(r2-0.5)*2.4; y=(Math.random()-0.5)*1.2-2.5; z=(Math.random()-0.5)*1.6; }
-                        else { 
-                            const part = Math.random(), sc = 0.8;
-                            if (part < 0.6) { const u=Math.random(), v=Math.random()*Math.PI*2, rP=Math.pow(u,0.4)*(1.2-u*0.4), R=rP*(1+0.15*Math.sin(6*v)*u)*sc; x=R*Math.cos(v); z=R*Math.sin(v); y=((u*1.8)+(Math.abs(Math.sin(3*v))*0.3*Math.pow(u,2)))*sc+0.5; }
-                            else if (part < 0.7) { const u=Math.random(), th=Math.random()*Math.PI*2; y=(-u*2.8)*sc+0.5; x=(0.04+Math.random()*0.04)*sc*Math.cos(th)+Math.sin(u*2)*0.05; z=(0.04+Math.random()*0.04)*sc*Math.sin(th); }
-                            else { const u=Math.random(), v=Math.random(); x=Math.pow(u,1.5)*1.5*sc+(v-0.5)*Math.sin(u*Math.PI)*0.3; y=(-2+u*2.5)*sc+Math.sin(v*Math.PI)*0.15+0.5; z=Math.sin(u*Math.PI)*0.4*sc+(v-0.5)*Math.sin(u*Math.PI)*0.3; }
+                        if (r1 < 0.2) { 
+                            x=(r2-0.5)*2.4; y=(Math.random()-0.5)*1.2-2.5; z=(Math.random()-0.5)*1.6; 
+                        } else { 
+                            // TULIP DIBUAT JAUH LEBIH PADAT (80% Partikel dialokasikan ke Tulip)
+                            const part = Math.random(), sc = 0.85;
+                            if (part < 0.7) { 
+                                // Mahkota lebih tebal dan rapat
+                                const u=Math.random(), v=Math.random()*Math.PI*2;
+                                const rP=Math.pow(u,0.4)*(1.2-u*0.4);
+                                // Menambahkan layer ketebalan acak
+                                const thick = 0.8 + 0.2*Math.random(); 
+                                const R=rP*(1+0.15*Math.sin(6*v)*u)*sc*thick; 
+                                x=R*Math.cos(v); z=R*Math.sin(v); 
+                                y=((u*1.8)+(Math.abs(Math.sin(3*v))*0.3*Math.pow(u,2)))*sc+0.5; 
+                            }
+                            else if (part < 0.8) { 
+                                const u=Math.random(), th=Math.random()*Math.PI*2; 
+                                y=(-u*2.8)*sc+0.5; 
+                                x=(0.04+Math.random()*0.05)*sc*Math.cos(th)+Math.sin(u*2)*0.05; 
+                                z=(0.04+Math.random()*0.05)*sc*Math.sin(th); 
+                            }
+                            else { 
+                                const u=Math.random(), v=Math.random(); 
+                                x=Math.pow(u,1.5)*1.5*sc+(v-0.5)*Math.sin(u*Math.PI)*0.3; 
+                                y=(-2+u*2.5)*sc+Math.sin(v*Math.PI)*0.15+0.5; 
+                                z=Math.sin(u*Math.PI)*0.4*sc+(v-0.5)*Math.sin(u*Math.PI)*0.3; 
+                            }
                         }
                         break;
                     case 'heart': 
@@ -278,30 +348,51 @@
 
         function initMediaPipe() {
             const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
-            hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.75, minTrackingConfidence: 0.75 });
+            hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.7, minTrackingConfidence: 0.7 });
             hands.onResults(onHandResults);
             new Camera(document.getElementById('webcam'), { onFrame: async () => { await hands.send({image: document.getElementById('webcam')}); }, width: 640, height: 480 }).start()
-            .then(() => { document.getElementById('loading').classList.add('fade-out'); showSubtitle("Tahap 1: <span>Genggam Tangan (✊)</span> untuk menyatukan kenangan."); });
+            .then(() => { 
+                document.getElementById('loading').classList.add('fade-out'); 
+                showSubtitle("Tahap 1: <span>Genggam Tangan (✊)</span> untuk menyatukan kenangan."); 
+            });
         }
 
         function onHandResults(results) {
             if (isAnimating || !results.multiHandLandmarks || results.multiHandLandmarks.length === 0) return;
             const landmarks = results.multiHandLandmarks[0];
+            
             const isIndexOpen = landmarks[8].y < landmarks[6].y;
-            const isThumbOpen = Math.hypot(landmarks[4].x - landmarks[2].x, landmarks[4].y - landmarks[2].y) > 0.12;
             const isMiddleOpen = landmarks[12].y < landmarks[10].y;
             const isRingOpen = landmarks[16].y < landmarks[14].y;
             const isPinkyOpen = landmarks[20].y < landmarks[18].y;
-            const pinch = Math.hypot(landmarks[4].x - landmarks[8].x, landmarks[4].y - landmarks[8].y) < 0.08;
+            
+            // Logika Deteksi Jempol Presisi
+            const pinchDist = Math.hypot(landmarks[4].x - landmarks[8].x, landmarks[4].y - landmarks[8].y);
+            const thumbBaseDist = Math.hypot(landmarks[4].x - landmarks[5].x, landmarks[4].y - landmarks[5].y); // Jarak ujung jempol ke pangkal telunjuk
+            
+            // JEMPOL DITEKUK (Disembunyikan)
+            const isThumbTucked = thumbBaseDist < 0.15;
+            // JEMPOL TERBUKA LEBAR
+            const isThumbExtended = thumbBaseDist > 0.15;
 
-            if (currentStage===0 && !isIndexOpen && !isThumbOpen && !isMiddleOpen) triggerSequenceStep(1);
-            else if (currentStage===1 && isIndexOpen && isMiddleOpen && isRingOpen) triggerSequenceStep(2);
-            else if (currentStage===2 && isIndexOpen && isMiddleOpen && !isRingOpen) triggerSequenceStep(3);
-            // LOGIKA TAHAP 4: Telunjuk SAJA (Jempol Menutup)
-            else if (currentStage===3 && isIndexOpen && !isThumbOpen && !isMiddleOpen) triggerSequenceStep(4);
-            // LOGIKA TAHAP 5: Telunjuk DAN Jempol (Membentuk 'L')
-            else if (currentStage===4 && isIndexOpen && isThumbOpen && !isMiddleOpen) triggerSequenceStep(5);
-            else if (currentStage===5 && pinch) triggerSequenceStep(6);
+            const isFist = !isIndexOpen && !isMiddleOpen && !isRingOpen && !isPinkyOpen;
+            const isOpen = isIndexOpen && isMiddleOpen && isRingOpen && isPinkyOpen;
+            const isPeace = isIndexOpen && isMiddleOpen && !isRingOpen && !isPinkyOpen;
+            
+            // TAHAP 4: SATU JARI ☝️ (Hanya Telunjuk, Jempol Ditekuk Ke Dalam)
+            const isStep4Gesture = isIndexOpen && !isMiddleOpen && !isRingOpen && !isPinkyOpen && isThumbTucked && pinchDist > 0.1;
+            
+            // TAHAP 5: TELUNJUK & JEMPOL 👆 (Membentuk Sudut Siku-Siku / L-Shape)
+            const isStep5Gesture = isIndexOpen && !isMiddleOpen && !isRingOpen && !isPinkyOpen && isThumbExtended && pinchDist > 0.15;
+
+            const isPinch = pinchDist < 0.08 && !isMiddleOpen && !isRingOpen;
+
+            if (currentStage===0 && isFist) triggerSequenceStep(1);
+            else if (currentStage===1 && isOpen) triggerSequenceStep(2);
+            else if (currentStage===2 && isPeace) triggerSequenceStep(3);
+            else if (currentStage===3 && isStep4Gesture) triggerSequenceStep(4);
+            else if (currentStage===4 && isStep5Gesture) triggerSequenceStep(5);
+            else if (currentStage===5 && isPinch) triggerSequenceStep(6);
         }
 
         function animate() {
@@ -311,6 +402,7 @@
                 particleMaterial.uniforms.u_time.value = time;
                 if (particles.userData.transitioning) {
                     const prog = (time - particles.userData.transitionStartTime) / particles.userData.transitionDuration;
+                    // Fungsi Easing Sinematik
                     const eased = prog < .5 ? 4 * prog * prog * prog : (prog - 1) * (2 * prog - 2) * (2 * prog - 2) + 1;
                     particleMaterial.uniforms.u_transition.value = THREE.MathUtils.clamp(eased, 0, 1);
                     if (prog >= 1) particles.userData.transitioning = false;

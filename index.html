@@ -21,9 +21,8 @@
         .ui-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: rgba(255, 255, 255, 0.6); margin-bottom: 5px; display: block;}
         input[type="color"] { border: none; width: 100px; height: 30px; border-radius: 5px; cursor: pointer; background: none; }
 
-        /* OPTIMASI ANTI-LAG: Semua teks panduan ditumpuk dan hanya dimainkan Opacity-nya */
         #subtitle-container {
-            position: absolute; bottom: 120px; left: 50%; transform: translateX(-50%);
+            position: absolute; bottom: 120px; left: 50%; transform: translate3d(-50%, 0, 0);
             width: 90%; max-width: 500px; height: 50px; 
             z-index: 120; pointer-events: none;
         }
@@ -170,7 +169,9 @@
             }
             
             vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
-            gl_PointSize = (2.2 + a_random * 1.5) * (100.0 / -mvPosition.z);
+            
+            // KEMBALI KE UKURAN PARTIKEL KECIL DAN TAJAM SEPERTI TULIP
+            gl_PointSize = 0.2 * (1.0 + a_random) * (100.0 / -mvPosition.z);
             gl_Position = projectionMatrix * mvPosition;
         }
     </script>
@@ -182,8 +183,10 @@
             float dist = distance(gl_PointCoord, vec2(0.5));
             float alpha = smoothstep(0.5, 0.2, dist); 
             if (alpha < 0.05) discard;
-            vec3 finalColor = u_color * (0.85 + vRandom * 0.2);
-            gl_FragColor = vec4(finalColor, alpha * 0.9); 
+            
+            // WARNA PARTIKEL TAJAM DAN MURNI TANPA EFEK GLOW BERLEBIHAN
+            vec3 finalColor = u_color * (0.8 + vRandom * 0.4);
+            gl_FragColor = vec4(finalColor, alpha * 0.85); 
         }
     </script>
 
@@ -388,7 +391,6 @@
             particles.userData.transitionDuration = durationSec;
         }
 
-        // FUNGSI SUBTITLE ANTI-LAG
         function showSubtitle(index) { 
             document.querySelectorAll('.sub-box').forEach(el => el.classList.remove('show'));
             if(index >= 0) document.getElementById('sub-' + index).classList.add('show');

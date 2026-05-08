@@ -21,15 +21,18 @@
         .ui-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: rgba(255, 255, 255, 0.6); margin-bottom: 5px; display: block;}
         input[type="color"] { border: none; width: 100px; height: 30px; border-radius: 5px; cursor: pointer; background: none; }
 
+        /* BAGIAN INI DISAMAKAN DENGAN CARA MESSAGE-CARD MUNCUL AGAR TIDAK LAG */
         #subtitle-container {
-            position: absolute; bottom: 120px; left: 50%; transform: translate3d(-50%, 0, 0);
+            position: absolute; bottom: 120px; left: 50%; transform: translate(-50%, 10px);
             text-align: center; z-index: 120; width: 90%; max-width: 500px;
             background: rgba(15, 15, 20, 0.85); padding: 12px 20px; border-radius: 30px;
-            border: 1px solid rgba(229, 154, 141, 0.3); transition: opacity 0.4s ease, transform 0.4s ease; 
+            border: 1px solid rgba(229, 154, 141, 0.3); 
             opacity: 0; pointer-events: none; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            will-change: opacity, transform;
+            transition: all 1s ease-out; 
         }
-        #subtitle-container.show { opacity: 1; transform: translate3d(-50%, -10px, 0); }
+        #subtitle-container.show { opacity: 1; transform: translate(-50%, 0); }
+        /* ===================================================================== */
+
         #subtitle-text { color: rgba(255,255,255,0.9); font-size: 14px; letter-spacing: 1px; line-height: 1.5; }
         #subtitle-text span { color: #e59a8d; font-weight: bold; font-size: 16px;}
         
@@ -146,7 +149,6 @@
             
             vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
             
-            // UKURAN PARTIKEL DIPERBESAR SEDIKIT KARENA JUMLAHNYA DIKURANGI
             gl_PointSize = 0.3 * (1.0 + a_random) * (100.0 / -mvPosition.z);
             gl_Position = projectionMatrix * mvPosition;
         }
@@ -167,7 +169,6 @@
         let scene, camera, renderer, clock;
         let particles, particleMaterial;
         
-        // DIKURANGI KE 8000 AGAR HP TIDAK PANAS DAN LAG
         let particleCount = 8000; 
         
         const patternData = {};
@@ -206,7 +207,6 @@
         function createParticles() {
             if (particles) scene.remove(particles);
             
-            // PRE-CALCULATION ENGINE
             patternNames.forEach(name => {
                 const arr = new Float32Array(particleCount * 3);
                 generatePattern(arr, name);
@@ -217,7 +217,6 @@
             const randoms = new Float32Array(particleCount);
             for (let i = 0; i < particleCount; i++) randoms[i] = Math.random();
 
-            // Set Data Awal (Langsung copas array, sangat cepat)
             geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(patternData['scatter']), 3));
             geometry.setAttribute('a_startPos', new THREE.BufferAttribute(new Float32Array(patternData['scatter']), 3));
             geometry.setAttribute('a_targetPos', new THREE.BufferAttribute(new Float32Array(patternData['scatter']), 3));
@@ -359,12 +358,10 @@
             }
         }
 
-        // SISTEM TRANSISI TANPA LOOP JAVASCRIPT: Instan dan 0% Lag!
         function transitionPattern(newPattern, durationSec = 3.0) {
             const startPositions = particles.geometry.attributes.a_startPos.array;
             const targetPositions = particles.geometry.attributes.a_targetPos.array;
             
-            // Menyalin array secara instan di level memori (sangat cepat)
             startPositions.set(targetPositions);
             targetPositions.set(patternData[newPattern]);
 
@@ -405,7 +402,6 @@
 
             if (stepTarget === 1) {
                 statusEl.innerText = "Mengumpulkan debu...";
-                // Dipercepat agar gumpalan cepat terbentuk lalu ditahan sesaat
                 transitionPattern('singularity', 1.2);
                 setTimeout(() => {
                     statusEl.innerText = "Membentuk Peti...";
@@ -415,7 +411,7 @@
                         statusEl.innerText = "Siap."; 
                         showSubtitle("Tahap 2: <span>Buka Lebar Tangan (✋)</span> untuk membuka peti.");
                     }, 2600); 
-                }, 1300); // Tunggu sampai partikel benar-benar kumpul di tengah
+                }, 1300); 
             } 
             else if (stepTarget === 2) {
                 statusEl.innerText = "Membuka Peti...";
@@ -505,17 +501,19 @@
                 const isPinkyOpen = landmarks[20].y < landmarks[18].y;
                 
                 const pinchDist = Math.hypot(landmarks[4].x - landmarks[8].x, landmarks[4].y - landmarks[8].y);
-                const thumbDist = Math.hypot(landmarks[4].x - landmarks[9].x, landmarks[4].y - landmarks[9].y);
+                
+                const indexLength = Math.hypot(landmarks[8].x - landmarks[5].x, landmarks[8].y - landmarks[5].y);
+                const thumbToIndexBase = Math.hypot(landmarks[4].x - landmarks[5].x, landmarks[4].y - landmarks[5].y);
+                
+                const isThumbOpen = thumbToIndexBase > (indexLength * 0.8);
 
                 const isFist = !isIndexOpen && !isMiddleOpen && !isRingOpen && !isPinkyOpen;
                 const isOpen = isIndexOpen && isMiddleOpen && isRingOpen && isPinkyOpen;
                 const isPeace = isIndexOpen && isMiddleOpen && !isRingOpen && !isPinkyOpen;
                 
-                // Sensor ☝️ : Telunjuk buka, jari lain tutup, JEMPOL DITEKUK KE DALAM
-                const isIndexOnly = isIndexOpen && !isMiddleOpen && !isRingOpen && !isPinkyOpen && pinchDist > 0.1 && thumbDist < 0.15;
+                const isIndexOnly = isIndexOpen && !isMiddleOpen && !isRingOpen && !isPinkyOpen && pinchDist > 0.1 && !isThumbOpen;
                 
-                // Sensor 👆 : Telunjuk buka, jari lain tutup, JEMPOL DIBUKA LEBAR (Bentuk L)
-                const isIndexAndThumb = isIndexOpen && !isMiddleOpen && !isRingOpen && !isPinkyOpen && thumbDist >= 0.15;
+                const isIndexAndThumb = isIndexOpen && !isMiddleOpen && !isRingOpen && !isPinkyOpen && isThumbOpen;
                 
                 const isPinch = pinchDist < 0.08 && !isMiddleOpen && !isRingOpen && !isPinkyOpen;
 

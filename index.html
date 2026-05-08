@@ -505,11 +505,18 @@
                 const isPinkyOpen = landmarks[20].y < landmarks[18].y;
                 
                 const pinchDist = Math.hypot(landmarks[4].x - landmarks[8].x, landmarks[4].y - landmarks[8].y);
+                const thumbDist = Math.hypot(landmarks[4].x - landmarks[9].x, landmarks[4].y - landmarks[9].y);
 
                 const isFist = !isIndexOpen && !isMiddleOpen && !isRingOpen && !isPinkyOpen;
                 const isOpen = isIndexOpen && isMiddleOpen && isRingOpen && isPinkyOpen;
                 const isPeace = isIndexOpen && isMiddleOpen && !isRingOpen && !isPinkyOpen;
-                const isIndexOnly = isIndexOpen && !isMiddleOpen && !isRingOpen && !isPinkyOpen && pinchDist > 0.1;
+                
+                // Sensor ☝️ : Telunjuk buka, jari lain tutup, JEMPOL DITEKUK KE DALAM
+                const isIndexOnly = isIndexOpen && !isMiddleOpen && !isRingOpen && !isPinkyOpen && pinchDist > 0.1 && thumbDist < 0.15;
+                
+                // Sensor 👆 : Telunjuk buka, jari lain tutup, JEMPOL DIBUKA LEBAR (Bentuk L)
+                const isIndexAndThumb = isIndexOpen && !isMiddleOpen && !isRingOpen && !isPinkyOpen && thumbDist >= 0.15;
+                
                 const isPinch = pinchDist < 0.08 && !isMiddleOpen && !isRingOpen && !isPinkyOpen;
 
                 let actionTriggered = false;
@@ -518,7 +525,7 @@
                 else if (currentStage === 1 && isOpen) { triggerSequenceStep(2); actionTriggered = true; }
                 else if (currentStage === 2 && isPeace) { triggerSequenceStep(3); actionTriggered = true; }
                 else if (currentStage === 3 && isIndexOnly) { triggerSequenceStep(4); actionTriggered = true; }
-                else if (currentStage === 4 && isIndexOnly) { triggerSequenceStep(5); actionTriggered = true; } 
+                else if (currentStage === 4 && isIndexAndThumb) { triggerSequenceStep(5); actionTriggered = true; } 
                 else if (currentStage === 5 && isPinch) { triggerSequenceStep(6); actionTriggered = true; } 
                 
                 if (actionTriggered) {

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Hana Memoria - Perjalanan Kenangan</title>
+    <title>Hana Memoria - Pure Particle</title>
     <style>
         body { 
             margin: 0; overflow: hidden; background: #080810; 
@@ -21,17 +21,23 @@
         .ui-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: rgba(255, 255, 255, 0.6); margin-bottom: 5px; display: block;}
         input[type="color"] { border: none; width: 100px; height: 30px; border-radius: 5px; cursor: pointer; background: none; }
 
+        /* OPTIMASI ANTI-LAG: Semua teks panduan ditumpuk dan hanya dimainkan Opacity-nya */
         #subtitle-container {
-            position: absolute; bottom: 120px; left: 50%; transform: translate3d(-50%, 0, 0);
-            text-align: center; z-index: 120; width: 90%; max-width: 500px;
-            background: rgba(15, 15, 20, 0.85); padding: 12px 20px; border-radius: 30px;
-            border: 1px solid rgba(229, 154, 141, 0.3); transition: opacity 0.4s ease, transform 0.4s ease; 
-            opacity: 0; pointer-events: none; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            will-change: opacity, transform;
+            position: absolute; bottom: 120px; left: 50%; transform: translateX(-50%);
+            width: 90%; max-width: 500px; height: 50px; 
+            z-index: 120; pointer-events: none;
         }
-        #subtitle-container.show { opacity: 1; transform: translate3d(-50%, -10px, 0); }
-        #subtitle-text { color: rgba(255,255,255,0.9); font-size: 14px; letter-spacing: 1px; line-height: 1.5; }
-        #subtitle-text span { color: #e59a8d; font-weight: bold; font-size: 16px;}
+        .sub-box {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 15, 20, 0.85); border-radius: 30px;
+            border: 1px solid rgba(229, 154, 141, 0.3); box-sizing: border-box;
+            display: flex; align-items: center; justify-content: center; text-align: center;
+            opacity: 0; transition: opacity 0.4s ease; will-change: opacity;
+            color: rgba(255,255,255,0.9); font-size: 13px; letter-spacing: 1px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .sub-box.show { opacity: 1; }
+        .sub-box span { color: #e59a8d; font-weight: bold; font-size: 15px; margin: 0 4px;}
         
         #branding {
             position: absolute; bottom: 30px; left: 0; width: 100%; text-align: center;
@@ -78,15 +84,20 @@
             #branding p { font-size: 11px; }
             #sensor-status { top: 15px; left: 50%; transform: translateX(-50%); width: max-content;}
             #message-card { width: 80%; padding: 25px; }
-            #subtitle-container { bottom: 100px; }
-            #ui-panel { top: auto; bottom: 30px; right: 20px; padding: 10px;}
+            #subtitle-container { bottom: 100px; height: 45px;}
+            #ui-panel { top: 60px; right: 10px; padding: 10px;}
             .guide-list { top: 60px; left: 10px; }
             .step { font-size: 10px; padding: 4px 8px;}
+            .sub-box { font-size: 11px; padding: 5px 10px;}
+            .sub-box span { font-size: 13px;}
         }
     </style>
 </head>
 <body>
-    <div id="loading">Memproses Memori Visual...<br><span style="font-size: 12px; opacity: 0.5; margin-top: 10px; display: block;">Menghidupkan anti-lag engine</span></div>
+    <div id="loading">
+        Membangun Memori Visual...<br>
+        <span id="loading-progress" style="font-size: 12px; color: #e59a8d; margin-top: 10px; display: block; font-weight: bold;">0%</span>
+    </div>
     <div id="sensor-status" style="color: #ffaaaa;">Kamera Belum Aktif</div>
     
     <div id="branding">
@@ -115,7 +126,12 @@
     </div>
 
     <div id="subtitle-container">
-        <div id="subtitle-text"></div>
+        <div id="sub-0" class="sub-box">Tahap 1: <span>Genggam Tangan (✊)</span> untuk menyatukan kenangan.</div>
+        <div id="sub-1" class="sub-box">Tahap 2: <span>Buka Lebar Tangan (✋)</span> untuk membuka peti.</div>
+        <div id="sub-2" class="sub-box">Tahap 3: Bentuk <span>Dua Jari (✌️)</span> untuk menggugurkan kelopak.</div>
+        <div id="sub-3" class="sub-box">Tahap 4: <span>Satu Jari (☝️)</span> (Sembunyikan Jempol)</div>
+        <div id="sub-4" class="sub-box">Tahap 5: <span>Bentuk 'L' (👆)</span> (Buka Telunjuk & Jempol)</div>
+        <div id="sub-5" class="sub-box">Tahap Terakhir: Beri <span>Cubitan Cinta (🫰)</span> untuk membaca pesan.</div>
     </div>
 
     <video id="webcam" autoplay playsinline muted style="display: none;"></video>
@@ -127,109 +143,129 @@
     <script id="vertexShader" type="x-shader/x-vertex">
         uniform float u_time;
         uniform float u_transition;
-        
+        uniform float u_isFrameDynamic; 
         attribute float a_random;
         attribute vec3 a_startPos;
         attribute vec3 a_targetPos;
-        
         varying float vRandom;
 
         void main() {
             vRandom = a_random;
             vec3 basePos = mix(a_startPos, a_targetPos, u_transition);
-
-            vec3 pos = basePos + vec3(
-                sin(u_time * (0.5 + a_random) + a_random * 10.0) * (0.05 + a_random * 0.1),
-                cos(u_time * (0.4 + a_random) + a_random * 10.0) * (0.05 + a_random * 0.1),
-                sin(u_time * (0.3 + a_random) + a_random * 10.0) * (0.05 + a_random * 0.1)
-            );
+            
+            vec3 pos = basePos;
+            
+            if (u_isFrameDynamic > 0.5 && a_targetPos.z == 0.0 && abs(a_targetPos.x) < 1.0 && abs(a_targetPos.y) < 1.4) {
+                 pos += vec3(
+                    sin(u_time * 1.5 + a_random * 20.0) * 0.15,
+                    cos(u_time * 1.2 + a_random * 20.0) * 0.15,
+                    sin(u_time * 1.8 + a_random * 20.0) * 0.15
+                );
+            } else {
+                pos += vec3(
+                    sin(u_time * 0.5 + a_random * 10.0) * 0.02,
+                    cos(u_time * 0.4 + a_random * 10.0) * 0.02,
+                    sin(u_time * 0.3 + a_random * 10.0) * 0.02
+                );
+            }
             
             vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
-            
-            gl_PointSize = 0.3 * (1.0 + a_random) * (100.0 / -mvPosition.z);
+            gl_PointSize = (2.2 + a_random * 1.5) * (100.0 / -mvPosition.z);
             gl_Position = projectionMatrix * mvPosition;
         }
     </script>
     <script id="fragmentShader" type="x-shader/x-fragment">
         uniform vec3 u_color;
         varying float vRandom;
+        
         void main() {
             float dist = distance(gl_PointCoord, vec2(0.5));
-            float alpha = smoothstep(0.5, 0.2, dist);
+            float alpha = smoothstep(0.5, 0.2, dist); 
             if (alpha < 0.05) discard;
-            vec3 finalColor = u_color * (0.8 + vRandom * 0.4);
-            gl_FragColor = vec4(finalColor, alpha * 0.85); 
+            vec3 finalColor = u_color * (0.85 + vRandom * 0.2);
+            gl_FragColor = vec4(finalColor, alpha * 0.9); 
         }
     </script>
 
     <script>
-        let scene, camera, renderer, clock;
-        let particles, particleMaterial;
-        
-        let particleCount = 8000; 
-        
+        let scene, camera, renderer, clock, particles, particleMaterial;
+        let particleCount = 12000; 
         const patternData = {};
         const patternNames = ['scatter', 'singularity', 'chest', 'chest_open_tulip', 'heart', 'explode', 'frame_dynamic', 'shatter', 'envelope_closed', 'envelope_open'];
-        
-        let currentStage = 0; 
-        let isAnimating = false; 
-        let gestureTimer = 0;
+        let currentStage = 0, isAnimating = false; 
 
         const statusEl = document.getElementById('sensor-status');
-        const subtitleContainer = document.getElementById('subtitle-container');
-        const subtitleText = document.getElementById('subtitle-text');
+        const progressEl = document.getElementById('loading-progress');
 
-        initThree();
-        createParticles();
-        initMediaPipe();
-        animate();
+        function startApp() {
+            initThree();
+            precalculatePatternsChunked(() => {
+                createParticles();
+                initMediaPipe();
+                animate();
+            });
+        }
+        
+        startApp();
 
         function initThree() {
             scene = new THREE.Scene();
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.z = 6.0; 
-
+            camera.position.z = 6.5; 
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             renderer.setSize(window.innerWidth, window.innerHeight);
             document.body.appendChild(renderer.domElement);
             clock = new THREE.Clock();
-            window.addEventListener('resize', onWindowResize, false);
-
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
             document.getElementById('color-picker').addEventListener('input', (e) => {
                 if(particleMaterial) particleMaterial.uniforms.u_color.value.set(e.target.value);
             });
         }
 
-        function createParticles() {
-            if (particles) scene.remove(particles);
-            
-            patternNames.forEach(name => {
+        function precalculatePatternsChunked(onComplete) {
+            let i = 0;
+            function processNext() {
+                if (i >= patternNames.length) {
+                    onComplete();
+                    return;
+                }
+                const name = patternNames[i];
                 const arr = new Float32Array(particleCount * 3);
                 generatePattern(arr, name);
                 patternData[name] = arr;
-            });
+                i++;
+                progressEl.innerText = Math.round((i / patternNames.length) * 100) + "%";
+                setTimeout(processNext, 15);
+            }
+            processNext();
+        }
 
+        function createParticles() {
             const geometry = new THREE.BufferGeometry();
             const randoms = new Float32Array(particleCount);
             for (let i = 0; i < particleCount; i++) randoms[i] = Math.random();
-
+            
             geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(patternData['scatter']), 3));
             geometry.setAttribute('a_startPos', new THREE.BufferAttribute(new Float32Array(patternData['scatter']), 3));
             geometry.setAttribute('a_targetPos', new THREE.BufferAttribute(new Float32Array(patternData['scatter']), 3));
             geometry.setAttribute('a_random', new THREE.BufferAttribute(randoms, 1));
-
+            
             particleMaterial = new THREE.ShaderMaterial({
                 vertexShader: document.getElementById('vertexShader').textContent,
                 fragmentShader: document.getElementById('fragmentShader').textContent,
-                uniforms: {
-                    u_time: { value: 0 },
+                uniforms: { 
+                    u_time: { value: 0 }, 
                     u_transition: { value: 1.0 }, 
-                    u_color: { value: new THREE.Color(document.getElementById('color-picker').value) }
+                    u_isFrameDynamic: { value: 0.0 }, 
+                    u_color: { value: new THREE.Color(document.getElementById('color-picker').value) } 
                 },
                 transparent: true, depthWrite: false
             });
-
             particles = new THREE.Points(geometry, particleMaterial);
             scene.add(particles);
         }
@@ -237,346 +273,259 @@
         function generatePattern(positions, pattern) {
             for (let i = 0; i < particleCount; i++) {
                 let x = 0, y = 0, z = 0;
-                const pIdx = i * 3;
-                const rand1 = Math.random();
-                const rand2 = Math.random();
-                
+                const pIdx = i * 3, r1 = Math.random(), r2 = Math.random(), r3 = Math.random();
                 switch (pattern) {
                     case 'scatter': 
-                        x = (Math.random() - 0.5) * 20; y = (Math.random() - 0.5) * 20; z = (Math.random() - 0.5) * 20;
-                        break;
+                        x = (r1-0.5)*20; y = (r2-0.5)*20; z = (r3-0.5)*20; break;
                     case 'singularity': 
-                        x = (Math.random() - 0.5) * 0.1; y = (Math.random() - 0.5) * 0.1; z = (Math.random() - 0.5) * 0.1;
-                        break;
+                        x = (r1-0.5)*0.1; y = (r2-0.5)*0.1; z = (r3-0.5)*0.1; break;
+                    
                     case 'chest': 
-                        const pC = Math.random();
-                        if (pC < 0.6) {
+                        const w = 2.4, h_box = 1.0, d = 1.6;
+                        if (r1 < 0.6) {
+                            x = (r1-0.5)*w; y = (r2-0.5)*h_box - 0.5; z = (r3-0.5)*d;
+                            const scalePermukaan = 0.9 + Math.random() * 0.1; 
                             let face = Math.floor(Math.random() * 6);
-                            let cx = (Math.random()-0.5)*2.4, cy = (Math.random()-0.5)*1.2 - 0.5, cz = (Math.random()-0.5)*1.6; 
-                            if (face===0) { x=1.2; y=cy; z=cz; } else if (face===1) { x=-1.2; y=cy; z=cz; }
-                            else if (face===2) { x=cx; y=0.1; z=cz; } else if (face===3) { x=cx; y=-1.1; z=cz; }
-                            else if (face===4) { x=cx; y=cy; z=0.8; } else { x=cx; y=cy; z=-0.8; }
-                        } else if (pC < 0.95) {
-                            let theta = Math.PI * rand1, len = (rand2 - 0.5) * 2.4;
-                            x = len; y = 0.1 + 0.8 * Math.sin(theta); z = 0.8 * Math.cos(theta);
+                            if (face === 0) x = w/2; else if (face === 1) x = -w/2;
+                            else if (face === 2) y = h_box/2; else if (face === 3) y = -h_box/2;
+                            else if (face === 4) z = d/2; else z = -d/2;
+                            if(face<2) { y=(y-0.5); } else if(face<4) { x=(r1-0.5)*w; z=(r3-0.5)*d; }
+                            x *= scalePermukaan; y = (y*scalePermukaan) - 0.5; z *= scalePermukaan;
                         } else {
-                            x = (Math.random()-0.5)*0.3; y = 0.0 + (Math.random()-0.5)*0.3; z = 0.85 + (Math.random()*0.1);
+                            let theta = Math.PI * r2; 
+                            let len = (r3 - 0.5) * w;
+                            const rLidMax = d / 2;
+                            const rLid = Math.sqrt(Math.random()) * rLidMax * 0.95; 
+                            x = len; 
+                            y = (Math.sin(theta) * rLid) + (h_box/2) - 0.5; 
+                            z = (Math.cos(theta) * rLid);
                         }
                         break;
+
                     case 'chest_open_tulip': 
-                        if (Math.random() < 0.3) {
-                            let isLid = Math.random() > 0.6;
-                            if(!isLid) {
-                                let f = Math.floor(Math.random() * 6);
-                                let cx = (Math.random()-0.5)*2.4, cy = (Math.random()-0.5)*1.2 - 0.5, cz = (Math.random()-0.5)*1.6; 
-                                if (f===0) { x=1.2; y=cy; z=cz; } else if (f===1) { x=-1.2; y=cy; z=cz; }
-                                else if (f===2) { x=cx; y=0.1; z=cz; } else if (f===3) { x=cx; y=-1.1; z=cz; }
-                                else if (f===4) { x=cx; y=cy; z=0.8; } else { x=cx; y=cy; z=-0.8; }
-                            } else {
-                                let theta = Math.PI * rand1, len = (rand2 - 0.5) * 2.4;
-                                let origY = 0.8 * Math.sin(theta), origZ = 0.8 * Math.cos(theta);
-                                let angle = 2.0; 
-                                x = len; y = 0.1 + origY * Math.cos(angle) - (origZ+0.8) * Math.sin(angle);
-                                z = -0.8 + origY * Math.sin(angle) + (origZ+0.8) * Math.cos(angle);
-                            }
-                            y -= 2.0; 
-                        } else {
-                            const part = Math.random();
-                            const scaleF = 0.8; 
-                            if (part < 0.6) { 
-                                const u = rand1, v = rand2 * Math.PI * 2;
-                                const rProfile = Math.pow(u, 0.4) * (1.2 - u * 0.4); 
-                                const petals = 1.0 + 0.15 * Math.sin(6 * v) * u;
-                                const R = rProfile * petals * (0.85 + 0.15 * Math.random()) * scaleF;
-                                x = R * Math.cos(v); z = R * Math.sin(v);
-                                y = ((u * 1.8) + (Math.abs(Math.sin(3 * v)) * 0.3 * Math.pow(u, 2))) * scaleF; 
-                            } else if (part < 0.7) { 
-                                const u = rand1, theta = rand2 * Math.PI * 2;
-                                y = (-u * 2.8) * scaleF; 
-                                const r = (0.04 + Math.random() * 0.04) * scaleF; 
-                                x = r * Math.cos(theta) + Math.sin(u * 2.0) * 0.05; z = r * Math.sin(theta);
-                            } else { 
-                                const u = rand1, v = rand2; 
-                                const spineX = Math.pow(u, 1.5) * 1.5 * scaleF;
-                                const spineY = (-2.0 + u * 2.5) * scaleF;
-                                const spineZ = Math.sin(u * Math.PI) * 0.4 * scaleF; 
-                                const leafWidth = Math.sin(u * Math.PI) * 0.5 * (1.0 - u * 0.2) * scaleF;
-                                x = spineX + (v - 0.5) * leafWidth * 0.6;
-                                y = spineY + Math.sin(v * Math.PI) * 0.15;
-                                z = spineZ + (v - 0.5) * leafWidth;
-                            }
-                            y += 0.5; 
+                        if (r1 < 0.25) { 
+                            const scaleC = 0.7;
+                            const wC = 2.4 * scaleC, hC = 1.0 * scaleC, dC = 1.6 * scaleC;
+                            x = (r1-0.5)*wC; y = (r2-0.5)*hC - 2.5; z = (r3-0.5)*dC;
+                            const scaleSurface = 0.85 + Math.random()*0.15;
+                            x *= scaleSurface; y = (y+2.5)*scaleSurface - 2.5; z *= scaleSurface;
+                        } else { 
+                            const u = r2, v = r3 * Math.PI * 2;
+                            const rP = Math.pow(u, 0.4) * (1.3 - u * 0.4);
+                            const petals = 1.0 + 0.2 * Math.sin(6 * v) * u;
+                            const thick = 0.8 + 0.2 * Math.random();
+                            const R = rP * petals * thick * 1.2;
+                            x = R * Math.cos(v); z = R * Math.sin(v);
+                            y = u * 2.8 + Math.abs(Math.sin(3 * v)) * 0.5 * Math.pow(u, 2) - 0.5;
                         }
                         break;
-                    case 'heart':
-                        const tH = rand2 * Math.PI * 2, rH = Math.sqrt(rand1), scaleH = 0.08;
-                        x = rH * 16 * Math.pow(Math.sin(tH), 3) * scaleH;
-                        y = rH * (13 * Math.cos(tH) - 5 * Math.cos(2*tH) - 2 * Math.cos(3*tH) - Math.cos(4*tH)) * scaleH;
-                        const thickness3D = Math.sqrt(Math.max(0, 1.0 - rH*rH)) * 0.6;
-                        z = (Math.random() - 0.5) * thickness3D; 
-                        y += 0.2; 
+                        
+                    case 'heart': 
+                        const tH = r2 * Math.PI * 2, rH = Math.sqrt(r1), scH = 0.09;
+                        x = rH * 16 * Math.pow(Math.sin(tH), 3) * scH;
+                        y = rH * (13 * Math.cos(tH) - 5 * Math.cos(2*tH) - 2 * Math.cos(3*tH) - Math.cos(4*tH)) * scH + 0.2;
+                        z = (r3 - 0.5) * Math.sqrt(Math.max(0, 1 - rH*rH)) * 0.8;
                         break;
+                        
                     case 'explode': 
-                        x = (Math.random() - 0.5) * 20; y = (Math.random() - 0.5) * 20; z = (Math.random() - 0.5) * 20;
-                        break;
+                        x = (r1-0.5)*25; y = (r2-0.5)*25; z = (r3-0.5)*25; break;
+                        
                     case 'frame_dynamic': 
-                        if (Math.random() < 0.85) { 
-                            const wOuter = 1.4, hOuter = 1.8, thick = 0.4, edge = Math.random();
-                            if (edge < 0.25) { x = (Math.random()-0.5) * wOuter * 2; y = hOuter - Math.random() * thick; }
-                            else if (edge < 0.5) { x = (Math.random()-0.5) * wOuter * 2; y = -hOuter + Math.random() * thick; }
-                            else if (edge < 0.75) { x = -wOuter + Math.random() * thick; y = (Math.random()-0.5) * hOuter * 2; }
-                            else { x = wOuter - Math.random() * thick; y = (Math.random()-0.5) * hOuter * 2; }
-                            z = (Math.random() - 0.5) * 0.2; 
-                        } else { 
-                            x = (Math.random() - 0.5) * 2.0; y = (Math.random() - 0.5) * 2.8; z = (Math.random() - 0.5) * 0.5;
+                        if (r1 < 0.75) {
+                            const fW = 1.4, fH = 1.8, fD = 0.2;
+                            let edge = Math.random();
+                            let bx, by;
+                            if (edge < 0.25) { bx = (Math.random()-0.5)*fW*2; by = fH; } 
+                            else if (edge < 0.5) { bx = (Math.random()-0.5)*fW*2; by = -fH; } 
+                            else if (edge < 0.75) { bx = -fW; by = (Math.random()-0.5)*fH*2; } 
+                            else { bx = fW; by = (Math.random()-0.5)*fH*2; } 
+                            x = bx * (0.8 + Math.random()*0.3);
+                            y = by * (0.8 + Math.random()*0.3);
+                            z = (r3-0.5) * fD * 2.0; 
+                        } else {
+                            x = (r2-0.5)*2.2; y = (r3-0.5)*3.0; z = 0.0;
                         }
                         break;
+                        
                     case 'shatter': 
-                        x = (Math.random() - 0.5) * 8.0; y = -4.0 - Math.random() * 4.0; z = (Math.random() - 0.5) * 5.0;
-                        break;
-                    case 'envelope_closed':
-                        if (Math.random() < 0.65) { 
-                            x = (Math.random()-0.5) * 3.5; y = (Math.random()-0.5) * 2.0 - 0.2; z = (Math.random()-0.5) * 0.1;
-                        } else { 
-                            let u = rand1, v = rand2; if (u + v > 1) { u = 1 - u; v = 1 - v; } 
-                            x = -1.75 + u * 3.5 + v * 1.75; y = 0.8 + u * 0 + v * (-0.8); z = 0.1 + (Math.random()-0.5) * 0.05; 
+                        x = (r1-0.5)*10; y = -4 - r2*5; z = (r3-0.5)*6; break;
+                    case 'envelope_closed': 
+                        if (r1 < 0.7) {
+                            x = (r1-0.5)*3.6; y = (r2-0.5)*2.2 - 0.2; z = (r3-0.5)*0.15;
+                            let m = Math.max(Math.abs(x/1.8), Math.abs((y+0.2)/1.1));
+                            x/=m; y=(y+0.2)/m - 0.2;
+                        } else {
+                            let u = r2, v = r3; if(u+v>1){u=1-u; v=1-v;}
+                            x = -1.8 + u*3.6 + v*1.8; y = 0.9 - v*1.1; z = 0.1 + (Math.random()-0.5)*0.05;
                         }
                         break;
-                    case 'envelope_open':
-                        if (Math.random() < 0.65) { 
-                            x = (Math.random()-0.5) * 3.5; y = (Math.random()-0.5) * 2.0 - 0.2; z = (Math.random()-0.5) * 0.1;
-                        } else { 
-                            let u = rand1, v = rand2; if (u + v > 1) { u = 1 - u; v = 1 - v; } 
-                            x = -1.75 + u * 3.5 + v * 1.75; y = 0.8 + u * 0 + v * 1.5; z = -0.1 + (Math.random()-0.5) * 0.05; 
+                    case 'envelope_open': 
+                        if (r1 < 0.7) {
+                            x = (r1-0.5)*3.6; y = (r2-0.5)*2.2 - 0.2; z = (r3-0.5)*0.15;
+                            let m = Math.max(Math.abs(x/1.8), Math.abs((y+0.2)/1.1));
+                            x/=m; y=(y+0.2)/m - 0.2;
+                        } else {
+                            let u = r2, v = r3; if(u+v>1){u=1-u; v=1-v;}
+                            x = -1.8 + u*3.6 + v*1.8; y = 0.9 + v*1.5; z = -0.1 + (Math.random()-0.5)*0.05;
                         }
                         break;
                 }
-                positions[pIdx] = x; positions[pIdx + 1] = y; positions[pIdx + 2] = z;
+                positions[pIdx] = x; positions[pIdx+1] = y; positions[pIdx+2] = z;
             }
         }
 
         function transitionPattern(newPattern, durationSec = 3.0) {
-            const startPositions = particles.geometry.attributes.a_startPos.array;
-            const targetPositions = particles.geometry.attributes.a_targetPos.array;
-            
-            startPositions.set(targetPositions);
-            targetPositions.set(patternData[newPattern]);
-
+            const start = particles.geometry.attributes.a_startPos.array, target = particles.geometry.attributes.a_targetPos.array;
+            start.set(target); target.set(patternData[newPattern]);
             particles.geometry.attributes.a_startPos.needsUpdate = true;
             particles.geometry.attributes.a_targetPos.needsUpdate = true;
-
-            particleMaterial.uniforms.u_transition.value = 0.0; 
-
+            particleMaterial.uniforms.u_transition.value = 0.0;
+            
+            particleMaterial.uniforms.u_isFrameDynamic.value = (newPattern === 'frame_dynamic') ? 1.0 : 0.0;
+            
             particles.userData.transitioning = true;
             particles.userData.transitionStartTime = clock.elapsedTime;
             particles.userData.transitionDuration = durationSec;
         }
 
-        function updateUIHighlight(stepIndex) {
-            document.querySelectorAll('.step').forEach((el, i) => {
-                if (i === stepIndex) el.classList.add('active');
-                else el.classList.remove('active');
-            });
+        // FUNGSI SUBTITLE ANTI-LAG
+        function showSubtitle(index) { 
+            document.querySelectorAll('.sub-box').forEach(el => el.classList.remove('show'));
+            if(index >= 0) document.getElementById('sub-' + index).classList.add('show');
         }
-
-        function showSubtitle(text) {
-            subtitleText.innerHTML = text;
-            subtitleContainer.classList.add('show');
+        function hideSubtitle() { 
+            document.querySelectorAll('.sub-box').forEach(el => el.classList.remove('show'));
         }
-        function hideSubtitle() {
-            subtitleContainer.classList.remove('show');
-        }
-
-        setTimeout(() => {
-            if(currentStage === 0) showSubtitle("Tahap 1: <span>Genggam Tangan (✊)</span> untuk menyatukan kenangan.");
-        }, 2000);
 
         function triggerSequenceStep(stepTarget) {
-            if (isAnimating) return;
-            isAnimating = true;
-            statusEl.style.color = "#e59a8d";
+            if (isAnimating) return; 
+            isAnimating = true; 
+            statusEl.style.color = "#e59a8d"; 
             hideSubtitle();
-
-            if (stepTarget === 1) {
-                statusEl.innerText = "Mengumpulkan debu...";
+            
+            if (stepTarget === 1) { 
+                statusEl.innerText = "Mengumpulkan debu..."; 
                 transitionPattern('singularity', 1.2);
-                setTimeout(() => {
-                    statusEl.innerText = "Membentuk Peti...";
-                    transitionPattern('chest', 2.5);
+                setTimeout(() => { 
+                    statusEl.innerText = "Membentuk Peti..."; 
+                    transitionPattern('chest', 2.5); 
                     setTimeout(() => { 
-                        isAnimating = false; currentStage = 1; updateUIHighlight(1);
-                        statusEl.innerText = "Siap."; 
-                        showSubtitle("Tahap 2: <span>Buka Lebar Tangan (✋)</span> untuk membuka peti.");
+                        isAnimating=false; currentStage=1; updateUI(1); 
+                        statusEl.innerText = "Siap.";
+                        showSubtitle(1); 
                     }, 2600); 
-                }, 1300); 
-            } 
-            else if (stepTarget === 2) {
-                statusEl.innerText = "Membuka Peti...";
-                transitionPattern('chest_open_tulip', 3.5);
+                }, 1300);
+            } else if (stepTarget === 2) { 
+                statusEl.innerText = "Membuka Peti..."; 
+                transitionPattern('chest_open_tulip', 3.5); 
                 setTimeout(() => { 
-                    isAnimating = false; currentStage = 2; updateUIHighlight(2);
-                    statusEl.innerText = "Siap."; 
-                    showSubtitle("Tahap 3: Bentuk <span>Dua Jari (✌️)</span> untuk menggugurkan kelopak.");
+                    isAnimating=false; currentStage=2; updateUI(2); 
+                    statusEl.innerText = "Siap.";
+                    showSubtitle(2); 
                 }, 3600);
-            }
-            else if (stepTarget === 3) {
-                statusEl.innerText = "Kelopak berguguran...";
-                transitionPattern('heart', 4.0);
+            } else if (stepTarget === 3) { 
+                statusEl.innerText = "Kelopak berguguran..."; 
+                transitionPattern('heart', 4.0); 
                 setTimeout(() => { 
-                    isAnimating = false; currentStage = 3; updateUIHighlight(3);
-                    statusEl.innerText = "Siap."; 
-                    // TAHAP 4: SATU JARI (☝️) (Jempol Sembunyi)
-                    showSubtitle("Tahap 4: <span>Tunjuk Kedepan (☝️)</span> (Sembunyikan Jempol)");
+                    isAnimating=false; currentStage=3; updateUI(3); 
+                    statusEl.innerText = "Siap.";
+                    showSubtitle(3); 
                 }, 4100);
-            }
-            else if (stepTarget === 4) {
-                statusEl.innerText = "Membesarkan Hati...";
-                transitionPattern('explode', 1.0);
-                setTimeout(() => {
+            } else if (stepTarget === 4) { 
+                statusEl.innerText = "Membesarkan Hati..."; 
+                transitionPattern('explode', 1.0); 
+                setTimeout(() => { 
                     statusEl.innerText = "Membingkai Kenangan...";
-                    transitionPattern('frame_dynamic', 3.0);
+                    transitionPattern('frame_dynamic', 3.0); 
                     setTimeout(() => { 
-                        isAnimating = false; currentStage = 4; updateUIHighlight(4);
-                        statusEl.innerText = "Siap."; 
-                        // TAHAP 5: TELUNJUK DAN JEMPOL (👆)
-                        showSubtitle("Tahap 5: <span>Bentuk 'L' (👆)</span> (Buka Telunjuk & Jempol)");
-                    }, 3100);
+                        isAnimating=false; currentStage=4; updateUI(4); 
+                        statusEl.innerText = "Siap.";
+                        showSubtitle(4); 
+                    }, 3100); 
                 }, 1100);
-            }
-            else if (stepTarget === 5) {
-                statusEl.innerText = "Memecahkan Bingkai...";
-                transitionPattern('shatter', 1.0);
-                setTimeout(() => {
+            } else if (stepTarget === 5) { 
+                statusEl.innerText = "Memecahkan Bingkai..."; 
+                transitionPattern('shatter', 1.0); 
+                setTimeout(() => { 
                     statusEl.innerText = "Membentuk Amplop...";
-                    transitionPattern('envelope_closed', 3.0);
+                    transitionPattern('envelope_closed', 3.0); 
                     setTimeout(() => { 
-                        isAnimating = false; currentStage = 5; updateUIHighlight(5);
-                        statusEl.innerText = "Siap."; 
-                        showSubtitle("Tahap Terakhir: Beri <span>Cubitan Cinta (🫰)</span> untuk membaca pesan.");
-                    }, 3100);
+                        isAnimating=false; currentStage=5; updateUI(5); 
+                        statusEl.innerText = "Siap.";
+                        showSubtitle(5); 
+                    }, 3100); 
                 }, 1100);
-            }
-            else if (stepTarget === 6) {
-                statusEl.innerText = "Membuka Surat...";
-                transitionPattern('envelope_open', 2.5);
-                setTimeout(() => {
-                    document.getElementById('message-card').classList.add('show');
-                    setTimeout(() => { 
-                        isAnimating = false; currentStage = 6; updateUIHighlight(0);
-                        statusEl.innerText = "Selesai."; 
-                    }, 3000);
+            } else if (stepTarget === 6) { 
+                statusEl.innerText = "Membuka Surat..."; 
+                transitionPattern('envelope_open', 2.5); 
+                setTimeout(() => { 
+                    document.getElementById('message-card').classList.add('show'); 
+                    isAnimating=false; currentStage=6; updateUI(-1); 
+                    statusEl.innerText="Selesai"; 
                 }, 1500);
             }
         }
 
-        function initMediaPipe() {
-            const videoElement = document.getElementById('webcam');
-            const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
-            
-            hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.7, minTrackingConfidence: 0.7 });
-            hands.onResults(onHandResults);
+        function updateUI(idx) { document.querySelectorAll('.step').forEach((s, i) => i===idx ? s.classList.add('active') : s.classList.remove('active')); }
 
-            const mpCamera = new Camera(videoElement, {
-                onFrame: async () => { await hands.send({image: videoElement}); },
-                width: 640, height: 480
-            });
-            
-            mpCamera.start().then(() => {
-                document.getElementById('loading').classList.add('fade-out');
-                statusEl.innerText = "Menunggu Gestur Pertama...";
-                statusEl.style.color = "white";
+        function initMediaPipe() {
+            const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
+            hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.75, minTrackingConfidence: 0.75 });
+            hands.onResults(onHandResults);
+            new Camera(document.getElementById('webcam'), { onFrame: async () => { await hands.send({image: document.getElementById('webcam')}); }, width: 640, height: 480 }).start()
+            .then(() => { 
+                document.getElementById('loading').classList.add('fade-out'); 
+                showSubtitle(0); 
             });
         }
 
         function onHandResults(results) {
-            if (isAnimating) return; 
+            if (isAnimating || !results.multiHandLandmarks || results.multiHandLandmarks.length === 0) return;
+            const landmarks = results.multiHandLandmarks[0];
+            
+            const isIndexOpen = landmarks[8].y < landmarks[6].y;
+            const isMiddleOpen = landmarks[12].y < landmarks[10].y;
+            const isRingOpen = landmarks[16].y < landmarks[14].y;
+            const isPinkyOpen = landmarks[20].y < landmarks[18].y;
+            
+            const pinchDist = Math.hypot(landmarks[4].x - landmarks[8].x, landmarks[4].y - landmarks[8].y);
+            const thumbBaseDist = Math.hypot(landmarks[4].x - landmarks[5].x, landmarks[4].y - landmarks[5].y);
+            const isThumbTucked = thumbBaseDist < 0.15;
+            const isThumbExtended = thumbBaseDist >= 0.15;
 
-            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-                const landmarks = results.multiHandLandmarks[0];
-                
-                const isIndexOpen = landmarks[8].y < landmarks[6].y;
-                const isMiddleOpen = landmarks[12].y < landmarks[10].y;
-                const isRingOpen = landmarks[16].y < landmarks[14].y;
-                const isPinkyOpen = landmarks[20].y < landmarks[18].y;
-                
-                const pinchDist = Math.hypot(landmarks[4].x - landmarks[8].x, landmarks[4].y - landmarks[8].y);
-                
-                // MENGUKUR JARAK JEMPOL UNTUK MEMBEDAKAN TAHAP 4 & 5
-                const thumbBaseDist = Math.hypot(landmarks[4].x - landmarks[5].x, landmarks[4].y - landmarks[5].y);
-                const isThumbTucked = thumbBaseDist < 0.15;
-                const isThumbExtended = thumbBaseDist >= 0.15;
+            const isFist = !isIndexOpen && !isMiddleOpen && !isRingOpen && !isPinkyOpen;
+            const isOpen = isIndexOpen && isMiddleOpen && isRingOpen && isPinkyOpen;
+            const isPeace = isIndexOpen && isMiddleOpen && !isRingOpen && !isPinkyOpen;
+            const isStep4Gesture = isIndexOpen && !isMiddleOpen && !isRingOpen && !isPinkyOpen && isThumbTucked && pinchDist > 0.1;
+            const isStep5Gesture = isIndexOpen && !isMiddleOpen && !isRingOpen && !isPinkyOpen && isThumbExtended && pinchDist > 0.15;
+            const isPinch = pinchDist < 0.08 && !isMiddleOpen && !isRingOpen;
 
-                const isFist = !isIndexOpen && !isMiddleOpen && !isRingOpen && !isPinkyOpen;
-                const isOpen = isIndexOpen && isMiddleOpen && isRingOpen && isPinkyOpen;
-                const isPeace = isIndexOpen && isMiddleOpen && !isRingOpen && !isPinkyOpen;
-                
-                // TAHAP 4: HANYA TELUNJUK (Jempol Sembunyi / ☝️)
-                const isStep4Gesture = isIndexOpen && !isMiddleOpen && !isRingOpen && !isPinkyOpen && isThumbTucked && pinchDist > 0.1;
-                
-                // TAHAP 5: TELUNJUK & JEMPOL TERBUKA BENTUK 'L' (👆)
-                const isStep5Gesture = isIndexOpen && !isMiddleOpen && !isRingOpen && !isPinkyOpen && isThumbExtended && pinchDist > 0.15;
-                
-                const isPinch = pinchDist < 0.08 && !isMiddleOpen && !isRingOpen && !isPinkyOpen;
-
-                let actionTriggered = false;
-
-                if (currentStage === 0 && isFist) { triggerSequenceStep(1); actionTriggered = true; }
-                else if (currentStage === 1 && isOpen) { triggerSequenceStep(2); actionTriggered = true; }
-                else if (currentStage === 2 && isPeace) { triggerSequenceStep(3); actionTriggered = true; }
-                else if (currentStage === 3 && isStep4Gesture) { triggerSequenceStep(4); actionTriggered = true; }
-                else if (currentStage === 4 && isStep5Gesture) { triggerSequenceStep(5); actionTriggered = true; } 
-                else if (currentStage === 5 && isPinch) { triggerSequenceStep(6); actionTriggered = true; } 
-                
-                if (actionTriggered) {
-                    gestureTimer = 0; 
-                }
-
-            } else {
-                if(!isAnimating && currentStage !== 6) {
-                    statusEl.innerText = "Tangan Tidak Terdeteksi";
-                    statusEl.style.color = "rgba(255,255,255,0.5)";
-                    statusEl.style.borderColor = "rgba(255,255,255,0.2)";
-                }
-            }
+            if (currentStage===0 && isFist) triggerSequenceStep(1);
+            else if (currentStage===1 && isOpen) triggerSequenceStep(2);
+            else if (currentStage===2 && isPeace) triggerSequenceStep(3);
+            else if (currentStage===3 && isStep4Gesture) triggerSequenceStep(4);
+            else if (currentStage===4 && isStep5Gesture) triggerSequenceStep(5);
+            else if (currentStage===5 && isPinch) triggerSequenceStep(6);
         }
 
         function animate() {
             requestAnimationFrame(animate);
-            const elapsedTime = clock.getElapsedTime();
-            if (particleMaterial) particleMaterial.uniforms.u_time.value = elapsedTime;
-
-            if (particles && particles.userData.transitioning) {
-                const { transitionStartTime, transitionDuration } = particles.userData;
-                const progress = THREE.MathUtils.clamp((elapsedTime - transitionStartTime) / transitionDuration, 0, 1);
-                
-                const easedProgress = progress < .5 ? 4 * progress * progress * progress : (progress - 1) * (2 * progress - 2) * (2 * progress - 2) + 1;
-                particleMaterial.uniforms.u_transition.value = easedProgress;
-                
-                if (progress >= 1) particles.userData.transitioning = false;
-            }
-
-            if (particles && !particles.userData.transitioning) {
-                if (currentStage === 1) {
-                    particles.rotation.y += 0.02;
-                    particles.rotation.x = 0; particles.rotation.z = 0;
-                } else if (currentStage === 5) {
-                    particles.rotation.y += 0.01;
-                    particles.rotation.x = 0; particles.rotation.z = 0;
-                } else if (currentStage === 6) {
-                    particles.rotation.y = THREE.MathUtils.lerp(particles.rotation.y, 0, 0.05);
-                } else {
-                    particles.rotation.y = elapsedTime * 0.2;
-                    particles.rotation.x = Math.cos(elapsedTime * 0.1) * 0.1;
+            const time = clock.getElapsedTime();
+            if (particleMaterial) {
+                particleMaterial.uniforms.u_time.value = time;
+                if (particles.userData.transitioning) {
+                    const prog = (time - particles.userData.transitionStartTime) / particles.userData.transitionDuration;
+                    const eased = prog < .5 ? 4 * prog * prog * prog : (prog - 1) * (2 * prog - 2) * (2 * prog - 2) + 1;
+                    particleMaterial.uniforms.u_transition.value = THREE.MathUtils.clamp(eased, 0, 1);
+                    if (prog >= 1) particles.userData.transitioning = false;
                 }
             }
-
+            if (particles) {
+                if (currentStage === 1 || currentStage === 5) particles.rotation.y += 0.015;
+                else if (currentStage === 6) particles.rotation.y = THREE.MathUtils.lerp(particles.rotation.y, 0, 0.05);
+                else { particles.rotation.y = time * 0.15; particles.rotation.x = Math.cos(time * 0.1) * 0.05; }
+            }
             renderer.render(scene, camera);
-        }
-
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
         }
     </script>
 </body>

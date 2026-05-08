@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Hana Memoria - Perjalanan Kenangan</title>
+    <title>Hana Memoria - Pure Particle</title>
     <style>
         body { 
             margin: 0; overflow: hidden; background: #080810; 
@@ -130,7 +130,7 @@
     <script id="vertexShader" type="x-shader/x-vertex">
         uniform float u_time;
         uniform float u_transition;
-        uniform float u_isFrameDynamic; // Flag untuk menggerakkan debu di tengah bingkai
+        uniform float u_isFrameDynamic; // Flag untuk debu tengah bingkai
         attribute float a_random;
         attribute vec3 a_startPos;
         attribute vec3 a_targetPos;
@@ -142,7 +142,7 @@
             
             vec3 pos = basePos;
             
-            // Logika Gerakan: Jika sedang di Tahap Bingkai, dan partikel ini adalah partikel memori (z = 0), gerakkan!
+            // Animasi Dinamis Debu Memori (Z=0 di Bingkai)
             if (u_isFrameDynamic > 0.5 && a_targetPos.z == 0.0 && abs(a_targetPos.x) < 1.0 && abs(a_targetPos.y) < 1.4) {
                  pos += vec3(
                     sin(u_time * 1.5 + a_random * 20.0) * 0.15,
@@ -150,7 +150,7 @@
                     sin(u_time * 1.8 + a_random * 20.0) * 0.15
                 );
             } else {
-                // Gerakan napas lambat untuk struktur benda
+                // Napas lambat untuk struktur benda
                 pos += vec3(
                     sin(u_time * 0.5 + a_random * 10.0) * 0.02,
                     cos(u_time * 0.4 + a_random * 10.0) * 0.02,
@@ -160,8 +160,8 @@
             
             vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
             
-            // Ukuran point dinaikkan sedikit agar padat tapi tidak berkilau berlebihan
-            gl_PointSize = (2.0 + a_random * 1.5) * (100.0 / -mvPosition.z);
+            // Ukuran point dinaikkan agar padat, tapi tidak memancarkan cahaya
+            gl_PointSize = (2.2 + a_random * 1.5) * (100.0 / -mvPosition.z);
             gl_Position = projectionMatrix * mvPosition;
         }
     </script>
@@ -170,19 +170,21 @@
         varying float vRandom;
         
         void main() {
+            // Membentuk radius membulat tanpa inti bersinar
             float dist = distance(gl_PointCoord, vec2(0.5));
-            float alpha = smoothstep(0.5, 0.1, dist);
+            // Edge lebih tajam agar tidak terkesan glow
+            float alpha = smoothstep(0.5, 0.2, dist); 
             if (alpha < 0.05) discard;
             
-            // Warna partikel solid dan elegan (Tanpa glitter sin/cos)
-            vec3 finalColor = u_color * (0.8 + vRandom * 0.3);
-            gl_FragColor = vec4(finalColor, alpha * 0.85); 
+            // Warna partikel solid dan murni (Tanpa glitter/sparkle)
+            vec3 finalColor = u_color * (0.85 + vRandom * 0.2);
+            gl_FragColor = vec4(finalColor, alpha * 0.9); 
         }
     </script>
 
     <script>
         let scene, camera, renderer, clock, particles, particleMaterial;
-        let particleCount = 12000; 
+        let particleCount = 12000; // Padat
         const patternData = {};
         const patternNames = ['scatter', 'singularity', 'chest', 'chest_open_tulip', 'heart', 'explode', 'frame_dynamic', 'shatter', 'envelope_closed', 'envelope_open'];
         let currentStage = 0, isAnimating = false; 
@@ -210,6 +212,7 @@
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             renderer.setSize(window.innerWidth, window.innerHeight);
+            // KUNCI: Tidak menggunakan Additive Blending lagi!
             document.body.appendChild(renderer.domElement);
             clock = new THREE.Clock();
             window.addEventListener('resize', () => {
@@ -256,16 +259,17 @@
                 uniforms: { 
                     u_time: { value: 0 }, 
                     u_transition: { value: 1.0 }, 
-                    u_isFrameDynamic: { value: 0.0 }, // Mengirim status ke Shader
+                    u_isFrameDynamic: { value: 0.0 }, 
                     u_color: { value: new THREE.Color(document.getElementById('color-picker').value) } 
                 },
-                transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
+                transparent: true, depthWrite: false,
+                // KUNCI: Hilangkan Additive Blending. Default ke Normal.
             });
             particles = new THREE.Points(geometry, particleMaterial);
             scene.add(particles);
         }
 
-        // KOREKSI RUMUS GEOMETRI (BENTUK PADAT 3D)
+        // KOREKSI RUMUS GEOMETRI (BENTUK PADAT 3D VOLUME PACKING)
         function generatePattern(positions, pattern) {
             for (let i = 0; i < particleCount; i++) {
                 let x = 0, y = 0, z = 0;
@@ -277,50 +281,42 @@
                         x = (r1-0.5)*0.1; y = (r2-0.5)*0.1; z = (r3-0.5)*0.1; break;
                     
                     case 'chest': 
-                        // PETI TERTUTUP SEMPURNA (100% Volume Packing)
+                        // PETI TERTUTUP SEMPURNA & PADAT (Volume Packing)
                         const w = 2.4, h_box = 1.0, d = 1.6;
                         if (r1 < 0.6) {
-                            // Body Kotak Peti (Dipilih dari permukaan terluar agar padat)
+                            // Body Kotak Peti Solid
+                            x = (r1-0.5)*w; y = (r2-0.5)*h_box - 0.5; z = (r3-0.5)*d;
+                            // Tambah ketebalan/volume acak ke dalam dari permukaan terluar
+                            const scalePermukaan = 0.9 + Math.random() * 0.1; 
                             let face = Math.floor(Math.random() * 6);
-                            let px = (Math.random()-0.5)*w;
-                            let py = (Math.random()-0.5)*h_box;
-                            let pz = (Math.random()-0.5)*d;
-                            
-                            // Paksa ke permukaan luar
-                            if (face === 0) px = w/2; else if (face === 1) px = -w/2;
-                            else if (face === 2) py = h_box/2; else if (face === 3) py = -h_box/2;
-                            else if (face === 4) pz = d/2; else pz = -d/2;
-                            
-                            // Tambah ketebalan/volume acak ke dalam
-                            const thickness = 0.8 + Math.random() * 0.2; 
-                            x = px * thickness; y = py * thickness - 0.5; z = pz * thickness;
+                            if (face === 0) x = w/2; else if (face === 1) x = -w/2;
+                            else if (face === 2) y = h_box/2; else if (face === 3) y = -h_box/2;
+                            else if (face === 4) z = d/2; else z = -d/2;
+                            // Terapkan skala agar membentuk volume tebal
+                            if(face<2) { y=(y-0.5); } else if(face<4) { x=(r1-0.5)*w; z=(r3-0.5)*d; }
+                            x *= scalePermukaan; y = (y*scalePermukaan) - 0.5; z *= scalePermukaan;
                         } else {
-                            // Tutup Peti Melengkung Utuh (Silinder Setengah)
-                            let theta = Math.PI * r2; // 0 hingga 180 derajat
+                            // Tutup Peti Melengkung Utuh Tanpa Celah (Pack Volume Silinder)
+                            let theta = Math.PI * r2; // 0 hingga 180 derajat (Kubah sempurna)
                             let len = (r3 - 0.5) * w;
-                            const rLid = d / 2; // Jari-jari tutup sama dengan setengah kedalaman
-                            
-                            // Ketebalan tutup
-                            const tLid = 0.85 + Math.random() * 0.15;
+                            const rLidMax = d / 2;
+                            // Pack radius agar padat
+                            const rLid = Math.sqrt(Math.random()) * rLidMax * 0.95; 
                             x = len; 
-                            y = (Math.sin(theta) * rLid * tLid) + (h_box/2) - 0.5; // Posisi y disambung ke atas kotak
-                            z = (Math.cos(theta) * rLid * tLid);
+                            y = (Math.sin(theta) * rLid) + (h_box/2) - 0.5; 
+                            z = (Math.cos(theta) * rLid);
                         }
                         break;
 
                     case 'chest_open_tulip': 
                         // PETI TERBUKA & TULIP MEWAH
                         if (r1 < 0.25) { 
-                            // Peti Kotak Bawah (Skala Diperkecil & Diturunkan)
+                            // Peti Kotak Bawah (Padat & Diturunkan)
                             const scaleC = 0.7;
                             const wC = 2.4 * scaleC, hC = 1.0 * scaleC, dC = 1.6 * scaleC;
-                            let face = Math.floor(Math.random() * 6);
-                            let px = (Math.random()-0.5)*wC, py = (Math.random()-0.5)*hC, pz = (Math.random()-0.5)*dC;
-                            if (face === 0) px = wC/2; else if (face === 1) px = -wC/2;
-                            else if (face === 2) py = hC/2; else if (face === 3) py = -hC/2;
-                            else if (face === 4) pz = dC/2; else pz = -dC/2;
-                            const thickness = 0.8 + Math.random() * 0.2; 
-                            x = px * thickness; y = py * thickness - 2.5; z = pz * thickness;
+                            x = (r1-0.5)*wC; y = (r2-0.5)*hC - 2.5; z = (r3-0.5)*dC;
+                            const scaleSurface = 0.85 + Math.random()*0.15;
+                            x *= scaleSurface; y = (y+2.5)*scaleSurface - 2.5; z *= scaleSurface;
                         } else { 
                             // Tulip Padat (75% Partikel)
                             const u = r2, v = r3 * Math.PI * 2;
@@ -344,32 +340,29 @@
                         x = (r1-0.5)*25; y = (r2-0.5)*25; z = (r3-0.5)*25; break;
                         
                     case 'frame_dynamic': 
-                        // BINGKAI FOTO PADAT (Frame Sempurna + Debu Tengah)
-                        if (r1 < 0.8) {
-                            // Bingkai Kotak (Surface Packing agar pinggirnya tebal merata)
+                        // BINGKAI FOTO PADAT & DEBU TENGAH PENUH/BERGERAK
+                        if (r1 < 0.75) {
+                            // Bingkai Kotak Padat Sempurna
                             const fW = 1.4, fH = 1.8, fD = 0.2;
                             let edge = Math.random();
                             let bx, by;
-                            // Membentuk 4 sisi bingkai
-                            if (edge < 0.25) { bx = (Math.random()-0.5)*fW*2; by = fH; } // Atas
-                            else if (edge < 0.5) { bx = (Math.random()-0.5)*fW*2; by = -fH; } // Bawah
-                            else if (edge < 0.75) { bx = -fW; by = (Math.random()-0.5)*fH*2; } // Kiri
-                            else { bx = fW; by = (Math.random()-0.5)*fH*2; } // Kanan
-                            
-                            // Tambah ketebalan bingkai ke dalam dan luar secara acak
-                            const thickDepth = 0.8 + Math.random()*0.4;
-                            x = bx * thickDepth;
-                            y = by * thickDepth;
+                            if (edge < 0.25) { bx = (Math.random()-0.5)*fW*2; by = fH; } 
+                            else if (edge < 0.5) { bx = (Math.random()-0.5)*fW*2; by = -fH; } 
+                            else if (edge < 0.75) { bx = -fW; by = (Math.random()-0.5)*fH*2; } 
+                            else { bx = fW; by = (Math.random()-0.5)*fH*2; } 
+                            // Terapkan volume bingkai
+                            x = bx * (0.8 + Math.random()*0.3);
+                            y = by * (0.8 + Math.random()*0.3);
                             z = (r3-0.5) * fD * 2.0; 
                         } else {
-                            // Debu memori dinamis di tengah (Diset Z = 0.0 agar bisa dikenali oleh Shader)
-                            x = (r2-0.5)*2.0; y = (r3-0.5)*2.8; z = 0.0;
+                            // Debu Memori Dinamis (Z = 0.0 untuk Shader, Pack Volume Tengah)
+                            // Mengisi area tengah secara acak
+                            x = (r2-0.5)*2.2; y = (r3-0.5)*3.0; z = 0.0;
                         }
                         break;
                         
                     case 'shatter': 
                         x = (r1-0.5)*10; y = -4 - r2*5; z = (r3-0.5)*6; break;
-                        
                     case 'envelope_closed': 
                         if (r1 < 0.7) {
                             x = (r1-0.5)*3.6; y = (r2-0.5)*2.2 - 0.2; z = (r3-0.5)*0.15;
@@ -380,7 +373,6 @@
                             x = -1.8 + u*3.6 + v*1.8; y = 0.9 - v*1.1; z = 0.1 + (Math.random()-0.5)*0.05;
                         }
                         break;
-                        
                     case 'envelope_open': 
                         if (r1 < 0.7) {
                             x = (r1-0.5)*3.6; y = (r2-0.5)*2.2 - 0.2; z = (r3-0.5)*0.15;
@@ -403,7 +395,7 @@
             particles.geometry.attributes.a_targetPos.needsUpdate = true;
             particleMaterial.uniforms.u_transition.value = 0.0;
             
-            // Aktifkan Shader Animasi Dinamis jika bentuknya adalah Bingkai
+            // Aktifkan desiran debu memori di tengah jika bentuknya Bingkai
             particleMaterial.uniforms.u_isFrameDynamic.value = (newPattern === 'frame_dynamic') ? 1.0 : 0.0;
             
             particles.userData.transitioning = true;

@@ -91,7 +91,7 @@
     </style>
 </head>
 <body>
-    <div id="loading">Memproses Memori Visual...<br><span style="font-size: 12px; opacity: 0.5; margin-top: 10px; display: block;">Menghidupkan anti-lag engine (Worker)</span></div>
+    <div id="loading">Memproses Memori Visual...<br><span style="font-size: 12px; opacity: 0.5; margin-top: 10px; display: block;">Menghidupkan anti-lag engine</span></div>
     <div id="sensor-status" style="color: #ffaaaa;">Kamera Belum Aktif</div>
     
     <div id="branding">
@@ -126,6 +126,8 @@
     <video id="webcam" autoplay playsinline muted style="display: none;"></video>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
 
     <script id="vertexShader" type="x-shader/x-vertex">
         uniform float u_time;
@@ -197,7 +199,7 @@
 
         initThree();
         createParticles();
-        initMediaPipe(); // Ini sekarang memanggil Web Worker
+        initMediaPipe();
         animate();
 
         function initThree() {
@@ -493,72 +495,15 @@
             }
         }
 
-        // --- SISTEM AI WEB WORKER (Pemisahan Beban Render vs AI) ---
+        // KEMBALI KE SISTEM UTAMA DENGAN FRAME SKIPPING MURNI (ANTI LAG & PASTI DETECT)
         function initMediaPipe() {
             const videoElement = document.getElementById('webcam');
+            const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
             
-            // 1. Buat Web Worker secara inline (Bypass load script di layar utama)
-            const workerScript = `
-                self.window = self;
-                if(typeof document === 'undefined') {
-                    self.document = {
-                        createElement: function(tag) {
-                            if(tag === 'canvas' && typeof OffscreenCanvas !== 'undefined') {
-                                return new OffscreenCanvas(320, 240);
-                            }
-                            return { getContext: function(){ return { drawImage: function(){}, getImageData: function(){ return {data:[]}; } }; } };
-                        }
-                    };
-                }
+            hands.setOptions({ maxNumHands: 1, modelComplexity: 0, minDetectionConfidence: 0.7, minTrackingConfidence: 0.7 });
+            hands.onResults(onHandResults);
 
-                importScripts('https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js');
-
-                const hands = new Hands({locateFile: (file) => 'https://cdn.jsdelivr.net/npm/@mediapipe/hands/' + file});
-                hands.setOptions({
-                    maxNumHands: 1, 
-                    modelComplexity: 0, 
-                    minDetectionConfidence: 0.7, 
-                    minTrackingConfidence: 0.7 
-                });
-
-                hands.onResults((results) => {
-                    if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-                        postMessage({ type: 'results', landmarks: results.multiHandLandmarks[0] });
-                    } else {
-                        postMessage({ type: 'results', landmarks: null });
-                    }
-                });
-
-                self.onmessage = async (e) => {
-                    if (e.data.image) {
-                        try {
-                            await hands.send({image: e.data.image});
-                        } catch(err) {}
-                        e.data.image.close(); // Bersihkan RAM
-                        postMessage({ type: 'ready' });
-                    }
-                };
-            `;
-
-            const workerBlob = new Blob([workerScript], { type: 'application/javascript' });
-            const workerUrl = URL.createObjectURL(workerBlob);
-            const handWorker = new Worker(workerUrl);
-
-            let workerReady = true;
-
-            // Menerima data koordinat jari dari Worker
-            handWorker.onmessage = (e) => {
-                if (e.data.type === 'ready') {
-                    workerReady = true;
-                } else if (e.data.type === 'results') {
-                    // Teruskan data ke sistem gestur kita dengan format aslinya
-                    onHandResults({
-                        multiHandLandmarks: e.data.landmarks ? [e.data.landmarks] : []
-                    });
-                }
-            };
-
-            // 2. Akses Kamera (Resolusi rendah agar AI sangat ringan)
+            // Buka kamera dengan resolusi rendah untuk efisiensi RAM/CPU
             navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 320 }, height: { ideal: 240 } } })
                 .then((stream) => {
                     videoElement.srcObject = stream;
@@ -566,27 +511,23 @@
                         videoElement.play();
                         document.getElementById('loading').classList.add('fade-out');
                         updateStatus("Menunggu Gestur Pertama...", "white", "rgba(255,255,255,0.2)");
-                        processVideoFrame();
+                        
+                        // FRAME SKIPPING MURNI: 
+                        // AI hanya disuruh menebak posisi tangan 10x per detik (Setiap 100ms)
+                        // CPU sangat lega, sensor PASTI terbaca, dan animasi tidak patah-patah
+                        setInterval(async () => {
+                            // Matikan AI sesaat jika partikel sedang transisi animasi bentuk
+                            if (!isAnimating && videoElement.readyState >= 2) {
+                                try {
+                                    await hands.send({image: videoElement});
+                                } catch(e) {}
+                            }
+                        }, 100);
                     };
                 }).catch(() => {
                     updateStatus("Kamera tidak diizinkan", "red", "red");
                 });
-
-            // 3. Loop Pengiriman Frame ke AI (Frame Skipping Otomatis)
-            async function processVideoFrame() {
-                // Hanya kirim gambar ke AI jika AI sudah selesai memproses gambar sebelumnya
-                // Dan matikan AI sementara jika sedang ada animasi transisi agar GPU 100% fokus ke partikel
-                if (!isAnimating && workerReady && videoElement.readyState >= 2) {
-                    try {
-                        const bitmap = await createImageBitmap(videoElement);
-                        workerReady = false; 
-                        handWorker.postMessage({ image: bitmap }, [bitmap]);
-                    } catch(e) {}
-                }
-                requestAnimationFrame(processVideoFrame);
-            }
         }
-        // -------------------------------------------------------------
 
         function onHandResults(results) {
             if (isAnimating) return; 
@@ -625,7 +566,8 @@
                 
                 if (targetDetected) {
                     gestureTimer++;
-                    if (gestureTimer >= 10) { 
+                    // Karena kita throttle 10FPS, turunkan syarat tahanan jadi 4 frame agar respon terasa instan
+                    if (gestureTimer >= 4) { 
                         if (currentStage === 0) triggerSequenceStep(1);
                         else if (currentStage === 1) triggerSequenceStep(2);
                         else if (currentStage === 2) triggerSequenceStep(3);

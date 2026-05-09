@@ -125,7 +125,6 @@
 
     <video id="webcam" autoplay playsinline muted style="display: none;"></video>
 
-    <!-- LIBRARY KEMBALI NORMAL AGAR SENSOR PASTI AKTIF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
@@ -182,6 +181,8 @@
         
         let currentStage = 0; 
         let isAnimating = false; 
+        // OPTIMASI ANTI-LAG: Lock untuk AI saat UI CSS (Subtitle) sedang bergerak
+        let isUIAnimating = false; 
         let gestureTimer = 0;
 
         const statusEl = document.getElementById('sensor-status');
@@ -410,6 +411,10 @@
             subtitleText.innerHTML = text;
             subtitleContainer.classList.add('show');
             if(particleMaterial) particleMaterial.uniforms.u_motionIntensity.value = 0.2; 
+            
+            // KUNCI AI SEMENTARA SAAT CSS BERGERAK (800ms)
+            isUIAnimating = true;
+            setTimeout(() => { isUIAnimating = false; }, 800);
         }
         function hideSubtitle() {
             subtitleContainer.classList.remove('show');
@@ -422,7 +427,7 @@
 
         function triggerSequenceStep(stepTarget) {
             if (isAnimating) return;
-            isAnimating = true;
+            isAnimating = true; // Blokir AI saat transisi partikel
             updateStatus("Merespons...", "#e59a8d");
             hideSubtitle();
 
@@ -496,7 +501,6 @@
             }
         }
 
-        // --- SISTEM PEMBACAAN SENSOR YANG DIPERBAIKI ---
         function initMediaPipe() {
             const videoElement = document.getElementById('webcam');
             const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
@@ -507,14 +511,14 @@
             let lastProcessTime = 0;
             const mpCamera = new Camera(videoElement, {
                 onFrame: async () => { 
-                    // Teknik Frame Skipping Aman: Batasi pengiriman frame ke AI maks ~10 FPS (tiap 100ms)
                     const now = Date.now();
-                    if (!isAnimating && now - lastProcessTime >= 100) { 
+                    // CEGAH AI BERJALAN SAAT SUBTITLE MUNCUL (isUIAnimating) AGAR TIDAK LAG
+                    if (!isAnimating && !isUIAnimating && now - lastProcessTime >= 100) { 
                         await hands.send({image: videoElement}); 
                         lastProcessTime = now;
                     }
                 },
-                width: 320, height: 240 // Resolusi lebih kecil = Beban AI turun drastis, tapi CameraUtils tetap handle stream-nya
+                width: 320, height: 240 
             });
             
             mpCamera.start().then(() => {
@@ -526,7 +530,7 @@
         }
 
         function onHandResults(results) {
-            if (isAnimating) return; 
+            if (isAnimating || isUIAnimating) return; 
 
             if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
                 const landmarks = results.multiHandLandmarks[0];
@@ -562,7 +566,6 @@
                 
                 if (targetDetected) {
                     gestureTimer++;
-                    // Sesuaikan timing tahanan karena kita sudah throttle ke 10 FPS
                     if (gestureTimer >= 4) { 
                         if (currentStage === 0) triggerSequenceStep(1);
                         else if (currentStage === 1) triggerSequenceStep(2);
@@ -583,10 +586,9 @@
             }
         }
 
+        // KEMBALI MENGGUNAKAN NATIVE REQUEST ANIMATION FRAME AGAR KANVAS MULUS DAN TIDAK STUTTER
         function animate() {
-            setTimeout(() => {
-                requestAnimationFrame(animate);
-            }, 1000 / 45); 
+            requestAnimationFrame(animate);
 
             const elapsedTime = clock.getElapsedTime();
             if (particleMaterial) particleMaterial.uniforms.u_time.value = elapsedTime;

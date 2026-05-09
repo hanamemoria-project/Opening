@@ -125,6 +125,7 @@
 
     <video id="webcam" autoplay playsinline muted style="display: none;"></video>
 
+    <!-- LIBRARY KEMBALI NORMAL AGAR SENSOR PASTI AKTIF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
@@ -495,7 +496,7 @@
             }
         }
 
-        // KEMBALI KE SISTEM UTAMA DENGAN FRAME SKIPPING MURNI (ANTI LAG & PASTI DETECT)
+        // --- SISTEM PEMBACAAN SENSOR YANG DIPERBAIKI ---
         function initMediaPipe() {
             const videoElement = document.getElementById('webcam');
             const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
@@ -503,30 +504,25 @@
             hands.setOptions({ maxNumHands: 1, modelComplexity: 0, minDetectionConfidence: 0.7, minTrackingConfidence: 0.7 });
             hands.onResults(onHandResults);
 
-            // Buka kamera dengan resolusi rendah untuk efisiensi RAM/CPU
-            navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 320 }, height: { ideal: 240 } } })
-                .then((stream) => {
-                    videoElement.srcObject = stream;
-                    videoElement.onloadedmetadata = () => {
-                        videoElement.play();
-                        document.getElementById('loading').classList.add('fade-out');
-                        updateStatus("Menunggu Gestur Pertama...", "white", "rgba(255,255,255,0.2)");
-                        
-                        // FRAME SKIPPING MURNI: 
-                        // AI hanya disuruh menebak posisi tangan 10x per detik (Setiap 100ms)
-                        // CPU sangat lega, sensor PASTI terbaca, dan animasi tidak patah-patah
-                        setInterval(async () => {
-                            // Matikan AI sesaat jika partikel sedang transisi animasi bentuk
-                            if (!isAnimating && videoElement.readyState >= 2) {
-                                try {
-                                    await hands.send({image: videoElement});
-                                } catch(e) {}
-                            }
-                        }, 100);
-                    };
-                }).catch(() => {
-                    updateStatus("Kamera tidak diizinkan", "red", "red");
-                });
+            let lastProcessTime = 0;
+            const mpCamera = new Camera(videoElement, {
+                onFrame: async () => { 
+                    // Teknik Frame Skipping Aman: Batasi pengiriman frame ke AI maks ~10 FPS (tiap 100ms)
+                    const now = Date.now();
+                    if (!isAnimating && now - lastProcessTime >= 100) { 
+                        await hands.send({image: videoElement}); 
+                        lastProcessTime = now;
+                    }
+                },
+                width: 320, height: 240 // Resolusi lebih kecil = Beban AI turun drastis, tapi CameraUtils tetap handle stream-nya
+            });
+            
+            mpCamera.start().then(() => {
+                document.getElementById('loading').classList.add('fade-out');
+                updateStatus("Menunggu Gestur Pertama...", "white", "rgba(255,255,255,0.2)");
+            }).catch(() => {
+                updateStatus("Kamera Gagal Akses", "red", "red");
+            });
         }
 
         function onHandResults(results) {
@@ -566,7 +562,7 @@
                 
                 if (targetDetected) {
                     gestureTimer++;
-                    // Karena kita throttle 10FPS, turunkan syarat tahanan jadi 4 frame agar respon terasa instan
+                    // Sesuaikan timing tahanan karena kita sudah throttle ke 10 FPS
                     if (gestureTimer >= 4) { 
                         if (currentStage === 0) triggerSequenceStep(1);
                         else if (currentStage === 1) triggerSequenceStep(2);

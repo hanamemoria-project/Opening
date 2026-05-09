@@ -21,16 +21,19 @@
         .ui-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: rgba(255, 255, 255, 0.6); margin-bottom: 5px; display: block;}
         input[type="color"] { border: none; width: 100px; height: 30px; border-radius: 5px; cursor: pointer; background: none; }
 
-        /* DISAMAKAN DENGAN MESSAGE-CARD AGAR TIDAK LAG */
+        /* OPTIMASI ANTI-LAG: Hapus box-shadow, gunakan translateZ(0) untuk Hardware Acceleration, dan hanya animasikan opacity */
         #subtitle-container {
-            position: absolute; bottom: 120px; left: 50%; transform: translate(-50%, 0);
+            position: absolute; bottom: 120px; left: 50%; 
+            transform: translateX(-50%) translateZ(0);
             text-align: center; z-index: 120; width: 90%; max-width: 500px;
             background: rgba(15, 15, 20, 0.85); padding: 12px 20px; border-radius: 30px;
             border: 1px solid rgba(229, 154, 141, 0.3); 
-            opacity: 0; pointer-events: none; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            transition: all 1s ease-out; 
+            opacity: 0; pointer-events: none; 
+            transition: opacity 0.5s ease; 
+            will-change: opacity;
         }
-        #subtitle-container.show { opacity: 1; transform: translate(-50%, -10px); pointer-events: auto; }
+        #subtitle-container.show { opacity: 1; }
+        /* ========================================================================================================= */
 
         #subtitle-text { color: rgba(255,255,255,0.9); font-size: 14px; letter-spacing: 1px; line-height: 1.5; }
         #subtitle-text span { color: #e59a8d; font-weight: bold; font-size: 16px;}
@@ -512,9 +515,10 @@
                 
                 const isIndexOnly = isIndexOpen && !isMiddleOpen && !isRingOpen && !isPinkyOpen && pinchDist > 0.1 && !isThumbOpen;
                 const isIndexAndThumb = isIndexOpen && !isMiddleOpen && !isRingOpen && !isPinkyOpen && isThumbOpen;
-                const isPinch = pinchDist < 0.08 && !isMiddleOpen && !isRingOpen && !isPinkyOpen;
+                
+                // TOLERANSI DIPERBESAR MENJADI 0.15 (Lebih mudah merespons jari yang menyilang saat bentuk Love)
+                const isPinch = pinchDist < 0.15 && !isMiddleOpen && !isRingOpen && !isPinkyOpen;
 
-                // PENAMBAHAN LOGIKA ANTI-SALAH BACA (DEBOUNCE 10 FRAME)
                 let targetDetected = false;
 
                 if (currentStage === 0 && isFist) targetDetected = true;
@@ -526,7 +530,7 @@
                 
                 if (targetDetected) {
                     gestureTimer++;
-                    if (gestureTimer >= 10) { // Harus ditahan stabil sekitar 10 frame 
+                    if (gestureTimer >= 10) { 
                         if (currentStage === 0) triggerSequenceStep(1);
                         else if (currentStage === 1) triggerSequenceStep(2);
                         else if (currentStage === 2) triggerSequenceStep(3);
@@ -536,7 +540,7 @@
                         gestureTimer = 0;
                     }
                 } else {
-                    gestureTimer = 0; // Reset ke 0 jika tangan goyah/gestur salah
+                    gestureTimer = 0; 
                 }
 
             } else {

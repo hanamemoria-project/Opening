@@ -1,631 +1,1114 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Hana Memoria - Perjalanan Kenangan</title>
-    <style>
-        body { 
-            margin: 0; overflow: hidden; background: #080810; 
-            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; 
-            color: white; touch-action: none;
-        }
-        canvas { display: block; }
-        
-        #ui-panel {
-            position: absolute; top: 20px; right: 20px; width: max-content;
-            background: rgba(20, 20, 25, 0.95); 
-            border-radius: 10px; padding: 15px; border: 1px rgba(255, 255, 255, 0.1) solid;
-            z-index: 100;
-        }
-        .ui-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: rgba(255, 255, 255, 0.6); margin-bottom: 5px; display: block;}
-        input[type="color"] { border: none; width: 100px; height: 30px; border-radius: 5px; cursor: pointer; background: none; }
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Hana Memoria</title>
+    
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;1,500;1,600&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #0d0d0d;
+            font-family: 'Poppins', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+            color: #e0bfb8;
+        }
+        canvas { display: block; }
+        
+        /* ================== UI PELACAK TANGAN ================== */
+        #main-hand-ui {
+            position: fixed; inset: 0; z-index: 100;
+            display: none;
+        }
+        
+        #ui-layer {
+            position: absolute; bottom: 5vh; left: 5vw; right: 5vw;
+            pointer-events: none;
+        }
+        #ui-layer h1 { margin: 0; font-size: clamp(1.3rem, 5vw, 1.8rem); font-weight: 400; letter-spacing: 3px; font-family: 'Playfair Display', serif; }
+        #ui-layer p.tagline { margin: 5px 0 0 0; font-size: clamp(0.85rem, 3vw, 1rem); opacity: 0.8; font-weight: 300; }
+        
+        #gesture-hint {
+            margin-top: 15px; padding: 8px 15px; display: inline-block;
+            background: rgba(224, 191, 184, 0.1); border-left: 3px solid #d8a07c;
+            border-radius: 4px; font-style: italic; font-size: clamp(0.75rem, 2.5vw, 0.85rem);
+            color: #e0bfb8; backdrop-filter: blur(5px); transition: all 0.3s ease;
+        }
+        #gesture-hint span { color: #d8a07c; font-weight: 600; font-style: normal; }
+        
+        #status-bar {
+            position: absolute; top: 20px; left: 20px;
+            background: rgba(224, 191, 184, 0.1); border: 1px solid rgba(224, 191, 184, 0.3);
+            padding: 8px 15px; border-radius: 20px; font-size: 0.85rem;
+            backdrop-filter: blur(5px); display: flex; align-items: center; gap: 10px;
+        }
+        .dot { width: 8px; height: 8px; border-radius: 50%; background-color: #ffaa00; box-shadow: 0 0 8px currentColor; }
+        .dot.active { background-color: #00ffaa; }
+        .dot.error { background-color: #ff0044; }
+
+        #start-btn {
+            background: #e0bfb8; color: #0d0d0d; border: none; padding: 6px 12px;
+            border-radius: 15px; font-weight: bold; cursor: pointer; font-size: 0.8rem;
+            transition: opacity 0.2s; font-family: 'Poppins', sans-serif; pointer-events: auto;
+        }
+        #start-btn:active { opacity: 0.7; }
+
+        /* ================== UI KARTU PESAN ================== */
+        #loading {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #0d0d0d; display: flex; flex-direction: column; justify-content: center; align-items: center;
+            font-size: 18px; font-weight: 200; letter-spacing: 2px; z-index: 2000; transition: opacity 0.5s; text-align: center;
+        }
+        #loading.fade-out { opacity: 0; pointer-events: none; }
+
+        #message-card {
+            position: absolute; top: 45%; left: 50%; 
+            transform: translate3d(-50%, -40%, 0);
+            width: 320px; background: rgba(25, 25, 30, 0.95);
+            border: 1px solid rgba(224, 191, 184, 0.3); border-radius: 15px;
+            padding: 30px; text-align: center; color: white;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+            opacity: 0; pointer-events: none; 
+            transition: opacity 1s ease-out, transform 1s ease-out; z-index: 150;
+        }
+        #message-card.show { opacity: 1; transform: translate3d(-50%, -50%, 0); pointer-events: auto; }
+        
+        #card-text-wrapper { transition: opacity 0.3s ease; }
+        #message-card h3 { color: #e0bfb8; font-family: 'Playfair Display', serif; font-size: 22px; margin-top: 0; margin-bottom: 12px; font-weight: 600; font-style: italic; }
+        #message-card p { font-family: 'Poppins', sans-serif; font-size: 14px; font-weight: 300; line-height: 1.7; margin-bottom: 25px; color: rgba(255,255,255,0.9);}
+        
+        .btn-utama { background: #e0bfb8; font-family: 'Poppins', sans-serif; border: none; padding: 12px 20px; border-radius: 50px; color: #0d0d0d; font-weight: 600; cursor: pointer; width: 100%; transition: transform 0.2s, background 0.2s; font-size: 12px; letter-spacing: 1px; text-transform: uppercase;}
+        
+        /* ================== UI PEMINDAI AR (MINDAR) ================== */
+        #mindar-overlay-container {
+            position: fixed; inset: 0; z-index: 1000;
+            display: none; background: transparent;
+        }
+        #mindar-overlay-container.active { display: block; }
+        
+        #ar-scene-target-container {
+            position: absolute; top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            overflow: hidden;
+        }
+
+        #tutorial-overlay { position: fixed; inset: 0; z-index: 1500; display: none; flex-direction: column; justify-content: center; align-items: center; background: rgba(0, 0, 0, 0.3); color: white; backdrop-filter: blur(2px); pointer-events: none;}
+        .tutorial-logo-container { position: relative; width: 160px; height: 160px; display: flex; justify-content: center; align-items: center; animation: pulseLogo 3.0s ease-in-out infinite; margin-bottom: 40px; }
+        .tutorial-logo { width: 100%; height: auto; object-fit: contain; filter: drop-shadow(0 0 10px rgba(255,255,255,0.5)); }
+        @keyframes pulseLogo { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+        .scan-line-logo { position: absolute; top: 0%; left: 0%; right: 0%; height: 3px; background: #e0bfb8; box-shadow: 0 0 15px #e0bfb8; animation: scanUpDownLogo 2.5s ease-in-out infinite; border-radius: 50%; z-index: 2; }
+        @keyframes scanUpDownLogo { 0% { top: 0%; opacity: 0; } 15% { opacity: 1; } 50% { top: 100%; } 85% { opacity: 1; } 100% { top: 0%; opacity: 0; } }
+        .tutorial-text h3 { font-family: 'Playfair Display', serif; font-weight: 600; font-size: 21px; margin: 0 0 10px 0; letter-spacing: 1px; color: #fff;}
+        .tutorial-text p { font-family: 'Poppins', sans-serif; font-weight: 300; font-size: 13px; color: rgba(255, 255, 255, 0.9); margin: 0; line-height: 1.7;}
+
+        @media (max-width: 600px) { #message-card { width: 80%; padding: 25px; } }
+
+        /* ================== MASKOT AR OVERLAY ================== */
+        #ar-mascot-stage {
+            position: fixed; inset: 0; z-index: 1100;
+            display: none; pointer-events: none;
+        }
+        #ar-mascot-stage.active { display: block; }
+
+        /* === MASKOT === */
+        #mascot-wrap {
+            position: absolute;
+            bottom: 22%; left: 50%;
+            transform: translateX(-50%);
+            display: flex; flex-direction: column; align-items: center;
+            pointer-events: auto;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        #mascot-img {
+            width: clamp(100px, 28vw, 140px);
+            filter: drop-shadow(0 12px 28px rgba(240,180,160,0.55));
+            animation: mascotIdle 3.2s ease-in-out infinite;
+            cursor: pointer;
+            transition: transform 0.15s ease;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        #mascot-img:active { transform: scale(0.92); }
+
+        @keyframes mascotIdle {
+            0%, 100% { transform: translateY(0px) rotate(-1deg); }
+            30%       { transform: translateY(-8px) rotate(0.5deg); }
+            60%       { transform: translateY(-4px) rotate(-0.5deg); }
+        }
+
+        /* Glowing heart button on mascot chest */
+        #mascot-heart-btn {
+            position: absolute;
+            /* Positioned at chest of mascot */
+            top: 52%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: clamp(34px, 9vw, 44px);
+            height: clamp(34px, 9vw, 44px);
+            background: radial-gradient(circle at 40% 35%, #fff9f0, #ffcdb2);
+            border: none; border-radius: 50%;
+            cursor: pointer; pointer-events: auto;
+            display: flex; align-items: center; justify-content: center;
+            font-size: clamp(16px, 4.5vw, 22px);
+            box-shadow: 0 0 0 0 rgba(255,180,140,0.7);
+            animation: heartPulse 2s ease-in-out infinite;
+            -webkit-tap-highlight-color: transparent;
+            transition: transform 0.15s ease;
+            z-index: 2;
+        }
+        #mascot-heart-btn:active { transform: translate(-50%,-50%) scale(0.88); }
+
+        @keyframes heartPulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(255,180,140,0.7), 0 0 14px 4px rgba(255,210,180,0.4); }
+            50%       { box-shadow: 0 0 0 10px rgba(255,180,140,0), 0 0 22px 8px rgba(255,210,180,0.6); }
+        }
+
+        /* === SPEECH BUBBLE === */
+        #speech-bubble {
+            position: absolute;
+            bottom: calc(100% + 14px);
+            left: 50%; transform: translateX(-50%) scale(0.8);
+            width: clamp(200px, 72vw, 290px);
+            background: rgba(255,250,248,0.97);
+            border-radius: 20px;
+            padding: 14px 18px 16px;
+            box-shadow: 0 8px 32px rgba(200,140,120,0.22), 0 2px 8px rgba(0,0,0,0.08);
+            opacity: 0; pointer-events: none;
+            transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.34,1.56,0.64,1);
+            text-align: center;
+        }
+        #speech-bubble.show {
+            opacity: 1; transform: translateX(-50%) scale(1);
+            pointer-events: auto;
+        }
+        /* Tail */
+        #speech-bubble::after {
+            content: '';
+            position: absolute; bottom: -10px; left: 50%; transform: translateX(-50%);
+            border-left: 10px solid transparent; border-right: 10px solid transparent;
+            border-top: 11px solid rgba(255,250,248,0.97);
+        }
+        #bubble-slide-title {
+            font-family: 'Playfair Display', serif;
+            font-size: clamp(13px, 3.8vw, 16px); font-weight: 600; font-style: italic;
+            color: #c07060; margin: 0 0 6px; line-height: 1.3;
+        }
+        #bubble-slide-body {
+            font-family: 'Poppins', sans-serif;
+            font-size: clamp(11px, 3.2vw, 13px); font-weight: 400; color: #5a4040;
+            line-height: 1.6; margin: 0 0 12px;
+        }
+        #bubble-next-btn {
+            background: linear-gradient(135deg, #f4a99a, #e07060);
+            border: none; border-radius: 50px; padding: 8px 20px;
+            color: #fff; font-family: 'Poppins', sans-serif;
+            font-size: 11px; font-weight: 600; letter-spacing: 0.8px;
+            cursor: pointer; -webkit-tap-highlight-color: transparent;
+            transition: transform 0.15s, opacity 0.15s;
+        }
+        #bubble-next-btn:active { transform: scale(0.92); opacity: 0.85; }
+
+        /* === VIDEO PANEL === */
+        #video-panel {
+            position: absolute;
+            top: 6%; left: 50%; transform: translateX(-50%) translateY(-20px);
+            width: clamp(200px, 78vw, 340px);
+            background: rgba(15,12,18,0.92);
+            border: 1.5px solid rgba(240,190,170,0.3);
+            border-radius: 20px; overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05);
+            opacity: 0; pointer-events: none;
+            transition: opacity 0.45s ease, transform 0.45s cubic-bezier(0.34,1.2,0.64,1);
+        }
+        #video-panel.show {
+            opacity: 1; transform: translateX(-50%) translateY(0);
+            pointer-events: auto;
+        }
+        #video-panel-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 10px 14px;
+            background: rgba(255,255,255,0.04);
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        #video-panel-header span {
+            font-family: 'Poppins', sans-serif; font-size: 11px; font-weight: 500;
+            color: rgba(240,190,170,0.9); letter-spacing: 0.5px;
+        }
+        #video-panel-close {
+            background: none; border: none; color: rgba(255,255,255,0.4);
+            font-size: 18px; cursor: pointer; line-height: 1; padding: 0 2px;
+            -webkit-tap-highlight-color: transparent;
+        }
+        #video-panel video {
+            width: 100%; display: block;
+            aspect-ratio: 16/9; background: #000;
+        }
+
+        /* === DECO PARTICLES (non-interactive) === */
+        .deco-particle {
+            position: absolute; pointer-events: none;
+            font-size: clamp(12px, 3.5vw, 18px);
+            animation: decoFloat linear infinite;
+            opacity: 0;
+            user-select: none;
+        }
+        @keyframes decoFloat {
+            0%   { transform: translateY(0) rotate(0deg) scale(0.8); opacity: 0; }
+            10%  { opacity: 0.7; }
+            85%  { opacity: 0.5; }
+            100% { transform: translateY(-65vh) rotate(360deg) scale(1.1); opacity: 0; }
+        }
+
+        /* Mascot entrance */
+        @keyframes mascotEntrance {
+            0%   { opacity: 0; transform: translateX(-50%) translateY(40px) scale(0.7); }
+            70%  { transform: translateX(-50%) translateY(-6px) scale(1.04); }
+            100% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+        }
+        #mascot-wrap { opacity: 0; }
+        #mascot-wrap.entered { animation: mascotEntrance 0.7s cubic-bezier(0.34,1.2,0.64,1) forwards; }
+
+        /* Tap hint below mascot */
+        #mascot-tap-hint {
+            margin-top: 8px;
+            font-family: 'Poppins', sans-serif; font-size: 10px;
+            color: rgba(255,255,255,0.55); letter-spacing: 0.5px;
+            animation: hintBlink 2s ease-in-out infinite;
+        }
+        @keyframes hintBlink { 0%,100%{opacity:0.55} 50%{opacity:0.2} }
+        #mascot-tap-hint.hidden { display: none; }
+    </style>
+</head>
+<body>
+
+    <div id="loading">Menyiapkan Memori...<br><span style="font-size: 12px; opacity: 0.5; margin-top: 10px; display: block;" id="loading-sub">Menghubungkan ke server</span></div>
+
+    <div id="main-hand-ui">
+        <div id="status-bar">
+            <div class="dot" id="status-indicator"></div>
+            <span id="status-text">Menunggu Gestur...</span>
+            <button id="start-btn">Aktifkan Sensor</button>
+        </div>
+
+        <div id="ui-layer">
+            <h1>HANA MEMORIA</h1>
+            <p id="tagline-hand" class="tagline">Mengabadikan cerita dalam setiap bingkai.</p>
+            <div id="gesture-hint">Klik tombol "Aktifkan Sensor" di atas...</div>
+        </div>
+        
+        <video id="webcam" autoplay playsinline muted style="display: none;"></video>
+    </div>
+
+    <div id="message-card">
+        <div id="card-text-wrapper">
+            <h3 id="card-title">Memuat...</h3>
+            <p id="card-desc">Tunggu sebentar...</p>
+        </div>
+        <button class="btn-utama" id="btn-next" onclick="nextSlide()">LANJUTKAN</button>
+    </div>
+
+    <div id="mindar-overlay-container">
+        <div id="ar-scene-target-container"></div>
+    </div>
+
+    <div id="tutorial-overlay">
+        <div class="tutorial-logo-container">
+            <img src="https://pub-02d853231cff4efa92ee6754c646a898.r2.dev/Logo_HM.png" class="tutorial-logo" alt="Scanning Logo">
+            <div class="scan-line-logo"></div>
+        </div>
+        <div class="tutorial-text" style="text-align: center;">
+            <h3>Fokus ke Foto</h3>
+            <p>Arahkan kameramu tepat ke foto fisik,<br>saksikan momen indah bersemi kembali. 🌸</p>
+        </div>
+    </div>
+
+    <!-- ============ MASKOT AR STAGE ============ -->
+    <div id="ar-mascot-stage">
 
-        #subtitle-container {
-            position: absolute; bottom: 120px; left: 50%; 
-            transform: translate3d(-50%, 0, 0);
-            text-align: center; z-index: 120; width: 90%; max-width: 500px;
-            background: rgba(15, 15, 20, 0.95); padding: 12px 20px; border-radius: 30px;
-            border: 1px solid rgba(229, 154, 141, 0.3); 
-            opacity: 0; pointer-events: none; box-shadow: 0 5px 20px rgba(0,0,0,0.5);
-            transition: opacity 0.5s ease, transform 0.5s ease; 
-            will-change: opacity, transform;
-        }
-        #subtitle-container.show { opacity: 1; transform: translate3d(-50%, -10px, 0); }
-        
-        #subtitle-text { color: rgba(255,255,255,0.9); font-size: 14px; letter-spacing: 1px; line-height: 1.5; }
-        #subtitle-text span { color: #e59a8d; font-weight: bold; font-size: 16px;}
-        
-        #branding {
-            position: absolute; bottom: 30px; left: 0; width: 100%; text-align: center;
-            z-index: 50; pointer-events: none; text-shadow: 0 2px 4px rgba(0,0,0,0.5);
-        }
-        #branding h1 { font-size: 28px; font-weight: 400; letter-spacing: 2px; margin: 0 0 5px 0; font-family: serif; }
-        #branding p { font-size: 14px; font-weight: 300; letter-spacing: 1px; margin: 0; opacity: 0.8; }
+        <!-- Video panel (top) -->
+        <div id="video-panel">
+            <div id="video-panel-header">
+                <span>🎬 VIDEO KENANGAN</span>
+                <button id="video-panel-close" onclick="closeVideoPanel()">✕</button>
+            </div>
+            <video id="ar-video-el" playsinline webkit-playsinline loop></video>
+        </div>
 
-        #sensor-status {
-            position: absolute; top: 20px; left: 20px; font-size: 12px;
-            letter-spacing: 1px; padding: 8px 15px; border-radius: 20px;
-            background: rgba(15, 15, 20, 0.90); border: 1px solid rgba(255,255,255,0.2);
-            transition: color 0.3s, border-color 0.3s, background-color 0.3s; z-index: 100;
-        }
+        <!-- Maskot + speech bubble -->
+        <div id="mascot-wrap" onclick="onMascotTap()">
+            <!-- Speech bubble -->
+            <div id="speech-bubble">
+                <div id="bubble-slide-title">Hana Memoria ✨</div>
+                <div id="bubble-slide-body">Momen indah ini dihidupkan kembali untukmu.</div>
+                <button id="bubble-next-btn" onclick="onBubbleNext(event)">LANJUT ›</button>
+            </div>
 
-        #loading {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: #080810; display: flex; flex-direction: column; justify-content: center; align-items: center;
-            font-size: 18px; font-weight: 200; letter-spacing: 2px; z-index: 200; transition: opacity 0.5s; text-align: center;
-        }
-        #loading.fade-out { opacity: 0; pointer-events: none; }
+            <!-- Maskot image + heart play btn -->
+            <div style="position:relative; display:inline-block;">
+                <img id="mascot-img"
+                    src="https://pub-02d853231cff4efa92ee6754c646a898.r2.dev/Animasi/1000283700-removebg-preview.png"
+                    alt="Hana"
+                    onerror="this.src='data:image/svg+xml,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'120\' height=\'140\' viewBox=\'0 0 120 140\'><ellipse cx=\'60\' cy=\'80\' rx=\'38\' ry=\'48\' fill=\'%23f4c5b3\'/><ellipse cx=\'60\' cy=\'55\' rx=\'32\' ry=\'35\' fill=\'%23f9d9cc\'/><circle cx=\'46\' cy=\'52\' r=\'7\' fill=\'%23222\'/><circle cx=\'74\' cy=\'52\' r=\'7\' fill=\'%23222\'/><path d=\'M52 65 Q60 72 68 65\' stroke=\'%23c07060\' stroke-width=\'2\' fill=\'none\' stroke-linecap=\'round\'/><polygon points=\'60,20 40,50 80,50\' fill=\'%23f4b0a0\'/></svg>'"
+                >
+                <button id="mascot-heart-btn" onclick="onHeartTap(event)" title="Putar video kenangan">
+                    ▶
+                </button>
+            </div>
 
-        #message-card {
-            position: absolute; top: 45%; left: 50%; 
-            transform: translate3d(-50%, -40%, 0);
-            width: 320px; background: rgba(25, 25, 30, 0.95);
-            border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 12px;
-            padding: 30px; text-align: center; color: white;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-            opacity: 0; pointer-events: none; 
-            transition: opacity 1s ease-out, transform 1s ease-out; z-index: 150;
-            will-change: opacity, transform;
-        }
-        #message-card.show { opacity: 1; transform: translate3d(-50%, -50%, 0); pointer-events: auto; }
-        #message-card h3 { margin: 0 0 10px 0; font-family: serif; color: #e59a8d; font-size: 22px; font-weight: 500;}
-        #message-card p { margin: 0; font-size: 15px; line-height: 1.6; font-weight: 300; font-style: italic;}
-        #message-card .author { margin-top: 15px; font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px;}
+            <div id="mascot-tap-hint">ketuk aku ✨</div>
+        </div>
 
-        .guide-list { position: absolute; left: 20px; top: 70px; display: flex; flex-direction: column; gap: 5px; pointer-events: none; z-index: 90;}
-        .step { font-size: 11px; color: rgba(255,255,255,0.3); padding: 5px 10px; border-radius: 5px; transition: color 0.3s, background 0.3s, transform 0.3s; transform-origin: left center; will-change: transform;}
-        .step.active { color: white; background: rgba(229, 154, 141, 0.2); border-left: 3px solid #e59a8d; transform: scale(1.05); }
-        .step span { color: #e59a8d; font-weight: bold; }
-
-        @media (max-width: 600px) {
-            #branding h1 { font-size: 22px; }
-            #branding p { font-size: 11px; }
-            #sensor-status { top: 15px; left: 50%; transform: translateX(-50%); width: max-content;}
-            #message-card { width: 80%; padding: 25px; }
-            #subtitle-container { bottom: 100px; }
-            #ui-panel { top: auto; bottom: 30px; right: 20px; padding: 10px;}
-            .guide-list { top: 60px; left: 10px; }
-            .step { font-size: 10px; padding: 4px 8px;}
-        }
-    </style>
-</head>
-<body>
-    <div id="loading">Memproses Memori Visual...<br><span style="font-size: 12px; opacity: 0.5; margin-top: 10px; display: block;">Menghidupkan anti-lag engine</span></div>
-    <div id="sensor-status" style="color: #ffaaaa;">Kamera Belum Aktif</div>
-    
-    <div id="branding">
-        <h1>Hana Memoria</h1>
-        <p>Mengabadikan cerita dalam setiap bingkai</p>
+        <!-- Decorative floating particles (no interaction) -->
+        <div class="deco-particle" style="left:8%; animation-duration:7s; animation-delay:0s;">🌸</div>
+        <div class="deco-particle" style="left:18%; animation-duration:9s; animation-delay:1.5s;">✨</div>
+        <div class="deco-particle" style="right:10%; animation-duration:8s; animation-delay:0.8s;">🌸</div>
+        <div class="deco-particle" style="right:22%; animation-duration:10s; animation-delay:3s;">⭐</div>
+        <div class="deco-particle" style="left:35%; animation-duration:11s; animation-delay:2s;">🌷</div>
+        <div class="deco-particle" style="right:35%; animation-duration:7.5s; animation-delay:4s;">✨</div>
+        <div class="deco-particle" style="left:5%; animation-duration:12s; animation-delay:5s;">💫</div>
+        <div class="deco-particle" style="right:5%; animation-duration:9.5s; animation-delay:1s;">🌸</div>
     </div>
 
-    <div id="message-card">
-        <h3>Halo, Kenangan Terindah.</h3>
-        <p>"Seperti debu bintang yang melayang, cerita kita akan selalu menemukan jalannya untuk berkumpul, bersemi, dan abadi dalam satu ruang di hati."</p>
-        <div class="author">- Hana Memoria</div>
-    </div>
+    <script id="vertexShader" type="x-shader/x-vertex">
+        attribute float aRandom;
+        attribute vec3 aScatterDir; 
+        
+        uniform float uSizeMultiplier;
+        uniform float uTime;
+        uniform float uScatter; 
+
+        void main() {
+            vec3 basePos = position;
+            
+            // Meledak/Memudar
+            vec3 scatteredPos = basePos + (aScatterDir * uScatter * 40.0);
+            
+            // Gerakan organik
+            vec3 wobble = vec3(
+                sin(uTime * 1.5 + aRandom * 10.0) * 0.05,
+                cos(uTime * 1.4 + aRandom * 10.0) * 0.05,
+                sin(uTime * 1.3 + aRandom * 10.0) * 0.05
+            );
+
+            vec3 finalPos = scatteredPos + wobble;
+            vec4 mvPosition = modelViewMatrix * vec4(finalPos, 1.0);
+            
+            gl_PointSize = uSizeMultiplier * (12.0 / -mvPosition.z);
+            gl_Position = projectionMatrix * mvPosition;
+        }
+    </script>
+    <script id="fragmentShader" type="x-shader/x-fragment">
+        uniform vec3 uColor;
+        uniform float uOpacity; 
+        
+        void main() {
+            vec2 coord = gl_PointCoord - vec2(0.5);
+            if(length(coord) > 0.5) discard;
+            if(uOpacity < 0.5) discard;
+            gl_FragColor = vec4(uColor, 1.0);
+        }
+    </script>
+
+    <script>
+        // --- 1. SETUP DATA SUPABASE ---
+        const SUPABASE_URL = 'https://ujnuvlrdxzqtfppbhioo.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVqbnV2bHJkeHpxdGZwcGJoaW9vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwNjU2OTYsImV4cCI6MjA5MDY0MTY5Nn0.slqPc8v7QZXxHzvMkOlXWAAYebX-sqUIiKZvA9DJkl0';
+        const params = new URLSearchParams(window.location.search);
+        const idPelanggan = params.get('id') || 'default';
+
+        let slides = [];
+        let slideIndex = 0;
+        let sceneARTemplate = ""; 
+
+        let scene, camera, renderer, clock;
+        let particles, particleMaterial;
+        let mpCameraInstance = null; 
+        
+        const particleCount = 12000; 
+        const patternData = {};
+        let isAnimating = false; 
+        let isProcessingAI = false;
+
+        // --- UBAH 1: Gestur yang Sepenuhnya Berbeda ---
+        const sequenceStages = [
+            { id: 0, shape: 'scatter', hint: 'Siap! Tunjukkan <span>✊ (Genggam)</span> ke kamera', reqGesture: null },
+            { id: 1, shape: 'singularity', hint: 'Bagus. Tunjukkan <span>✌️ (Dua Jari / Peace)</span>', reqGesture: 'fist' },
+            { id: 2, shape: 'heart', hint: 'Sempurna. Tunjukkan <span>☝️ (Satu Jari)</span>', reqGesture: 'peace' },
+            { id: 3, shape: 'tulip', hint: 'Cantik. Tunjukkan <span>🖐️ (Telapak Terbuka)</span>', reqGesture: 'index' },
+            { id: 4, shape: 'frame', hint: 'Keren. Tunjukkan <span>👍 (Jempol)</span>', reqGesture: 'open_palm' },
+            { id: 5, shape: 'closedEnvelope', hint: 'Amplop siap! Lakukan <span>🤏 (Cubit)</span> di udara...', reqGesture: 'thumb_up' },
+            { id: 6, shape: 'openEnvelope', hint: 'Membaca surat kenangan...', reqGesture: 'pinch' }
+        ];
+        let currentStageIndex = 0;
+
+        const statusText = document.getElementById('status-text');
+        const statusIndicator = document.getElementById('status-indicator');
+        const hintEl = document.getElementById('gesture-hint');
+        const startBtn = document.getElementById('start-btn');
+        const taglineHandEl = document.getElementById('tagline-hand');
+        const isMobile = () => window.innerWidth < window.innerHeight;
+
+        window.onload = async () => {
+            try {
+                const res = await fetch(`${SUPABASE_URL}/rest/v1/Pesanan?id_pesanan=eq.${idPelanggan}`, {
+                    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+                });
+                if (!res.ok) throw new Error("Gagal akses database");
+                const data = (await res.json())[0];
+
+                if(data) {
+                    initMascotData(data); // init maskot slides & video
+                    let rawSlides = data.slides;
+                    try { if (typeof rawSlides === 'string') rawSlides = JSON.parse(rawSlides); } catch(e) {}
+                    if (Array.isArray(rawSlides) && rawSlides.length > 0 && rawSlides[0].t) {
+                        slides = rawSlides;
+                    } else {
+                        slides = [{ "t": "Hana Memoria ✨", "b": "Kenangan manis ini dihidupkan kembali khusus untukmu." }];
+                    }
+
+                    const p = (data.video_posisi || "0 0 0").split(' ');
+                    const s = (data.video_skala || "1 1.5 1").split(' ');
+                    const rotZ = parseFloat((data.video_rotasi || "0 0 0").split(' ')[2]);
+
+                    sceneARTemplate = `
+                        <a-scene id="ar-scene" mindar-image="imageTargetSrc: ${data.link_target}; autoStart: false; uiScanning: no;" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false" embedded>
+                            <a-assets><video id="webVideo" src="${data.link_video}" loop="true" crossorigin="anonymous" playsinline webkit-playsinline></video></a-assets>
+                            <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+                            <a-entity mindar-image-target="targetIndex: 0" id="target-ar">
+                                <a-video id="vDisplay" src="#webVideo" position="${p[0]} ${p[1]} 0" width="${s[0]}" height="${s[1]}" rotation="0 0 ${rotZ}"></a-video>
+                            </a-entity>
+                        </a-scene>
+                    `;
+
+                    document.getElementById('loading').classList.add('fade-out');
+                    document.getElementById('main-hand-ui').style.display = 'block';
+
+                    initThree();
+                    createParticles();
+                    animate();
+
+                } else {
+                    document.getElementById('loading-sub').innerText = "Data tidak ditemukan. Pastikan URL valid.";
+                }
+            } catch (e) { 
+                document.getElementById('loading-sub').innerText = "Koneksi terputus. Silakan muat ulang.";
+            }
+        };
+
+        function updateStatus(text, isActive = false, isError = false) {
+            statusText.innerText = text;
+            if (isError) {
+                statusIndicator.className = 'dot error';
+            } else {
+                statusIndicator.className = isActive ? 'dot active' : 'dot';
+                if (!isActive) statusIndicator.style.backgroundColor = '#ffaa00';
+            }
+        }
+
+        startBtn.addEventListener('click', function() {
+            this.style.display = 'none'; 
+            initMediaPipe();
+        });
+
+
+        // --- 2. GENERATOR BENTUK MATEMATIKA ---
+        function randomTriangle(arr, startIndex, count, A, B, C, gap = 0) {
+            let centroid = { x: (A.x+B.x+C.x)/3, y: (A.y+B.y+C.y)/3, z: (A.z+B.z+C.z)/3 };
+            let a = { x: mix(A.x, centroid.x, gap), y: mix(A.y, centroid.y, gap), z: A.z };
+            let b = { x: mix(B.x, centroid.x, gap), y: mix(B.y, centroid.y, gap), z: B.z };
+            let c = { x: mix(C.x, centroid.x, gap), y: mix(C.y, centroid.y, gap), z: C.z };
+
+            for(let i=0; i<count; i++) {
+                let r1 = Math.random(), r2 = Math.random();
+                if(r1+r2 > 1) { r1 = 1-r1; r2 = 1-r2; }
+                let idx = (startIndex + i) * 3;
+                arr[idx] = a.x + r1*(b.x-a.x) + r2*(c.x-a.x);
+                arr[idx+1] = a.y + r1*(b.y-a.y) + r2*(c.y-a.y);
+                arr[idx+2] = a.z + r1*(b.z-a.z) + r2*(c.z-a.z) + (Math.random()-0.5)*0.02; 
+            }
+        }
+        function mix(x, y, a) { return x * (1-a) + y * a; }
+
+        function getScatterPositions() {
+            const arr = new Float32Array(particleCount * 3);
+            for(let i = 0; i < particleCount * 3; i++) arr[i] = (Math.random() - 0.5) * 45; 
+            return arr;
+        }
+
+        function getSingularityPositions() {
+            const arr = new Float32Array(particleCount * 3);
+            for(let i = 0; i < particleCount * 3; i+=3) {
+                const u = Math.random(), v = Math.random();
+                const theta = u * 2.0 * Math.PI;
+                const phi = Math.acos(2.0 * v - 1.0); 
+                const r = Math.cbrt(Math.random()) * 2.0; 
+                arr[i] = r * Math.sin(phi) * Math.cos(theta);
+                arr[i+1] = r * Math.sin(phi) * Math.sin(theta);
+                arr[i+2] = r * Math.cos(phi);
+            }
+            return arr;
+        }
+
+        function getHeartPositions() {
+            const arr = new Float32Array(particleCount * 3);
+            const scale = 4.5; 
+            for(let i = 0; i < particleCount * 3; i+=3) {
+                let x, y;
+                while(true) {
+                    x = (Math.random() - 0.5) * 3.0; y = (Math.random() - 0.5) * 3.0; 
+                    let a = x*x + y*y - 1.0;
+                    if (a*a*a - x*x*y*y*y <= 0.0) break; 
+                }
+                arr[i] = x * scale; arr[i+1] = y * scale + 1.2; arr[i+2] = (Math.random() - 0.5) * 1.5; 
+            }
+            return arr;
+        }
+
+        function getTulipPositions() {
+            const arr = new Float32Array(particleCount * 3);
+            const flowerCount = Math.floor(particleCount * 0.70);
+            const stemCount = Math.floor(particleCount * 0.15);
+            const leafCount = particleCount - flowerCount - stemCount;
+            const baseOffsetY = -5.0; let idx = 0;
+            for(let i=0; i<stemCount; i++) {
+                const h = Math.random();
+                arr[idx++] = Math.sin(h * Math.PI) * 0.2 + (Math.random()-0.5)*0.2; 
+                arr[idx++] = baseOffsetY + h * 8.5; arr[idx++] = (Math.random()-0.5)*0.2;
+            }
+            for(let i=0; i<leafCount; i++) {
+                const u = Math.random(), v = Math.random(); 
+                const length = 6.5, width = Math.sin(u * Math.PI) * 1.8; 
+                const xOffset = u * length * 0.9, yOffset = u * length * 1.2, zCurve = Math.sin(u * Math.PI) * -1.5; 
+                arr[idx++] = xOffset + (v - 0.5) * width;
+                arr[idx++] = baseOffsetY + 1.0 + yOffset + (Math.random()-0.5)*0.2;
+                arr[idx++] = zCurve + (Math.random()-0.5)*0.2;
+            }
+            const flowerBaseY = baseOffsetY + 8.5;
+            for(let i=0; i<flowerCount; i++) {
+                const u = Math.random(), v = Math.random();
+                const petalIndex = Math.floor(Math.random() * 6), angleBase = (petalIndex * Math.PI * 2) / 6.0, petalWidthAngle = Math.PI / 2.5; 
+                const theta = angleBase + (v - 0.5) * petalWidthAngle;
+                let r = Math.sin(Math.acos(1 - u * 1.4)) * 2.8; 
+                if (isNaN(r)) r = 2.0; if(u > 0.6) r -= (u - 0.6) * 2.0;
+                const tipPinch = Math.sin(v * Math.PI), heightVariation = u * 5.0 + tipPinch * 1.5; 
+                arr[idx++] = r * Math.cos(theta) + (Math.random()-0.5)*0.1;
+                arr[idx++] = flowerBaseY + heightVariation + (Math.random()-0.5)*0.1;
+                arr[idx++] = r * Math.sin(theta) + (Math.random()-0.5)*0.1; 
+            }
+            return arr;
+        }
+
+        function getFramePositions() {
+            const arr = new Float32Array(particleCount * 3);
+            const wOuter = 3.5, hOuter = 5.5, thick = 0.8;
+            for(let i = 0; i < particleCount * 3; i+=3) {
+                let x, y, z;
+                if (Math.random() < 0.70) { 
+                    const edge = Math.random();
+                    if (edge < 0.25) { x = (Math.random()-0.5)*wOuter*2; y = hOuter-Math.random()*thick; } 
+                    else if (edge < 0.5) { x = (Math.random()-0.5)*wOuter*2; y = -hOuter+Math.random()*thick; } 
+                    else if (edge < 0.75) { x = -wOuter+Math.random()*thick; y = (Math.random()-0.5)*hOuter*2; } 
+                    else { x = wOuter-Math.random()*thick; y = (Math.random()-0.5)*hOuter*2; }
+                } else {
+                    x = (Math.random()-0.5) * (wOuter*2-thick*2); y = (Math.random()-0.5) * (hOuter*2-thick*2);
+                }
+                z = (Math.random() - 0.5) * 0.5; 
+                arr[i] = x; arr[i+1] = y; arr[i+2] = z;
+            }
+            return arr;
+        }
+
+        function getClosedEnvelopePositions() {
+            const arr = new Float32Array(particleCount * 3);
+            const w = 7.5, h = 4.5;
+            let cBack = Math.floor(particleCount * 0.4);
+            let cSide = Math.floor(particleCount * 0.15);
+            let cTop = particleCount - cBack - (cSide * 3);
+
+            let TL = {x: -w/2, y: h/2, z: 0}, TR = {x: w/2, y: h/2, z: 0};
+            let BL = {x: -w/2, y: -h/2, z: 0}, BR = {x: w/2, y: -h/2, z: 0};
+            let M = {x: 0, y: 0, z: 0.1};
+
+            randomTriangle(arr, 0, Math.floor(cBack/2), TL, TR, BL, 0.0);
+            randomTriangle(arr, Math.floor(cBack/2), cBack - Math.floor(cBack/2), TR, BR, BL, 0.0);
+
+            randomTriangle(arr, cBack, cSide, TL, BL, M, 0.03); 
+            randomTriangle(arr, cBack+cSide, cSide, TR, BR, M, 0.03); 
+            randomTriangle(arr, cBack+cSide*2, cSide, BL, BR, {x:0, y:-0.5, z:0.15}, 0.03); 
+
+            randomTriangle(arr, cBack+cSide*3, cTop, TL, TR, {x:0, y:-0.5, z:0.2}, 0.03);
+            
+            return arr;
+        }
+
+        function getOpenEnvelopePositions() {
+            const arr = new Float32Array(particleCount * 3);
+            const w = 7.5, h = 4.5;
+            let cBack = Math.floor(particleCount * 0.3);
+            let cPaper = Math.floor(particleCount * 0.25);
+            let cSide = Math.floor(particleCount * 0.15);
+            let cTop = particleCount - cBack - cPaper - (cSide * 2);
+
+            let TL = {x: -w/2, y: h/2, z: 0}, TR = {x: w/2, y: h/2, z: 0};
+            let BL = {x: -w/2, y: -h/2, z: 0}, BR = {x: w/2, y: -h/2, z: 0};
+            let M = {x: 0, y: 0, z: 0.1};
+
+            randomTriangle(arr, 0, Math.floor(cBack/2), TL, TR, BL, 0.0);
+            randomTriangle(arr, Math.floor(cBack/2), cBack - Math.floor(cBack/2), TR, BR, BL, 0.0);
+
+            let pTL = {x: -w/2 + 0.5, y: h/2 + 2.0, z: 0.05};
+            let pTR = {x: w/2 - 0.5, y: h/2 + 2.0, z: 0.05};
+            let pBL = {x: -w/2 + 0.5, y: -h/2 + 0.5, z: 0.05};
+            let pBR = {x: w/2 - 0.5, y: -h/2 + 0.5, z: 0.05};
+            randomTriangle(arr, cBack, Math.floor(cPaper/2), pTL, pTR, pBL, 0.01);
+            randomTriangle(arr, cBack+Math.floor(cPaper/2), cPaper - Math.floor(cPaper/2), pTR, pBR, pBL, 0.01);
+
+            randomTriangle(arr, cBack+cPaper, cSide, TL, BL, M, 0.03); 
+            randomTriangle(arr, cBack+cPaper+cSide, cSide, TR, BR, M, 0.03); 
+            randomTriangle(arr, cBack+cPaper+cSide*2, cSide, BL, BR, {x:0, y:-0.5, z:0.15}, 0.03); 
+
+            randomTriangle(arr, cBack+cPaper+cSide*3, cTop, TL, TR, {x:0, y:h/2+2.5, z:0.2}, 0.03);
+
+            for(let i=0; i<particleCount*3; i+=3) { arr[i+1] -= 1.0; }
+
+            return arr;
+        }
+
+        // --- 3. SETUP SCENE TIGA JS ---
+
+        function initThree() {
+            scene = new THREE.Scene();
+            
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = isMobile() ? 20 : 15; 
+
+            renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true, powerPreference: "high-performance" });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(1.0); 
+            renderer.domElement.id = "particle-canvas";
+            document.body.appendChild(renderer.domElement);
+            
+            clock = new THREE.Clock();
+            window.addEventListener('resize', onWindowResize, false);
+        }
+
+        function createParticles() {
+            patternData['scatter'] = getScatterPositions();
+            patternData['singularity'] = getSingularityPositions();
+            patternData['heart'] = getHeartPositions();
+            patternData['tulip'] = getTulipPositions();
+            patternData['frame'] = getFramePositions();
+            patternData['closedEnvelope'] = getClosedEnvelopePositions();
+            patternData['openEnvelope'] = getOpenEnvelopePositions();
+
+            const geometry = new THREE.BufferGeometry();
+            const initialPositions = new Float32Array(patternData['scatter']);
+            
+            const randoms = new Float32Array(particleCount);
+            const scatterDirs = new Float32Array(particleCount * 3);
+            
+            for(let i=0; i<particleCount; i++) {
+                randoms[i] = Math.random();
+                const theta = Math.random() * 2 * Math.PI;
+                const phi = Math.acos(2 * Math.random() - 1);
+                const speed = Math.random() * 1.5 + 0.5;
+                scatterDirs[i*3] = Math.sin(phi) * Math.cos(theta) * speed;
+                scatterDirs[i*3+1] = Math.sin(phi) * Math.sin(theta) * speed;
+                scatterDirs[i*3+2] = Math.cos(phi) * speed;
+            }
+
+            geometry.setAttribute('position', new THREE.BufferAttribute(initialPositions, 3));
+            geometry.setAttribute('aRandom', new THREE.BufferAttribute(randoms, 1));
+            geometry.setAttribute('aScatterDir', new THREE.BufferAttribute(scatterDirs, 3));
+
+            particleMaterial = new THREE.ShaderMaterial({
+                vertexShader: document.getElementById('vertexShader').textContent,
+                fragmentShader: document.getElementById('fragmentShader').textContent,
+                uniforms: {
+                    uTime: { value: 0 },
+                    uScatter: { value: 0.0 }, 
+                    uOpacity: { value: 1.0 }, 
+                    uColor: { value: new THREE.Color('#e0bfb8') }, 
+                    uSizeMultiplier: { value: isMobile() ? 4.0 : 2.0 } 
+                },
+                transparent: false, 
+                blending: THREE.NoBlending,
+                depthWrite: true, 
+                depthTest: true
+            });
+
+            particles = new THREE.Points(geometry, particleMaterial);
+            scene.add(particles);
+        }
+
+        function transitionPattern(shapeName) {
+            if (isAnimating || !particles) return;
+            isAnimating = true;
+
+            if (shapeName === 'openEnvelope') {
+                taglineHandEl.innerText = 'Surat kenangan terbuka... ✨';
+            } else {
+                taglineHandEl.innerText = 'Mengabadikan cerita dalam setiap bingkai.';
+            }
+
+            gsap.to(particleMaterial.uniforms.uScatter, { value: 1.0, duration: 1.2, ease: "power2.in" });
+            gsap.to(particleMaterial.uniforms.uOpacity, { 
+                value: 0.0, 
+                duration: 1.2, 
+                ease: "power2.in",
+                onComplete: () => {
+                    const posAttr = particles.geometry.attributes.position;
+                    const newPositions = patternData[shapeName];
+                    for(let i = 0; i < particleCount * 3; i++) posAttr.array[i] = newPositions[i];
+                    posAttr.needsUpdate = true;
+                    particles.rotation.x = -0.2; 
+
+                    gsap.to(particleMaterial.uniforms.uOpacity, { value: 1.0, duration: 1.5, ease: "power2.out" });
+                    gsap.to(particleMaterial.uniforms.uScatter, { 
+                        value: 0.0, 
+                        duration: 1.5, 
+                        ease: "power2.out",
+                        onComplete: () => { 
+                            isAnimating = false; 
+                            if(shapeName === 'openEnvelope') {
+                                updateCardUI();
+                                document.getElementById('message-card').classList.add('show');
+                            }
+                        }
+                    });
+                }
+            });
+        }
+
+        // --- 4. LOGIKA SLIDE & AR KAMERA ---
+        function updateCardUI() {
+            if(slides.length > 0) {
+                document.getElementById('card-title').innerText = slides[slideIndex].t || "Hana Memoria";
+                document.getElementById('card-desc').innerText = slides[slideIndex].b || "...";
+                document.getElementById('btn-next').innerText = (slideIndex === slides.length - 1) ? "MULAI PEMINDAIAN" : "LANJUTKAN";
+            }
+        }
+
+        window.nextSlide = function() { 
+            if (slideIndex < slides.length - 1) {
+                const wrapper = document.getElementById('card-text-wrapper');
+                wrapper.style.opacity = 0;
+                setTimeout(() => {
+                    slideIndex++;
+                    updateCardUI();
+                    wrapper.style.opacity = 1;
+                }, 300);
+            } else {
+                startARScanner();
+            }
+        }
+
+        function startARScanner() {
+            document.getElementById('message-card').classList.remove('show');
+            document.getElementById('loading').innerHTML = "Membuka Kamera Pemindai...<br><span style='font-size:12px;opacity:0.5'>Menyiapkan Lensa</span>";
+            document.getElementById('loading').classList.remove('fade-out');
+
+            isAnimating = true; 
+            
+            if (mpCameraInstance) {
+                mpCameraInstance.stop();
+            }
+            const videoElement = document.getElementById('webcam');
+            if (videoElement && videoElement.srcObject) {
+                videoElement.srcObject.getTracks().forEach(track => {
+                    track.stop();
+                    track.enabled = false;
+                });
+                videoElement.srcObject = null;
+            }
+
+            if(renderer) {
+                renderer.dispose();
+                const cvs = document.getElementById('particle-canvas');
+                if(cvs) cvs.remove();
+            }
+
+            setTimeout(() => {
+                document.getElementById('main-hand-ui').style.display = 'none';
+                document.getElementById('mindar-overlay-container').classList.add('active');
+                document.getElementById('ar-scene-target-container').innerHTML = sceneARTemplate;
+                
+                setTimeout(() => {
+                    document.getElementById('loading').classList.add('fade-out');
+                    
+                    const sceneAR = document.getElementById('ar-scene');
+                    if(sceneAR && sceneAR.systems["mindar-image-system"]) {
+                        sceneAR.systems["mindar-image-system"].start();
+                    }
+
+                    document.getElementById('tutorial-overlay').style.display = 'flex';
+                    
+                    const targetAR = document.getElementById('target-ar');
+                    const vid = document.getElementById('webVideo');
+                    if (targetAR && vid) {
+                        targetAR.addEventListener("targetFound", () => {
+                            document.getElementById('tutorial-overlay').style.display = 'none';
+                            vid.play();
+                            showMascotStage();
+                        });
+                        targetAR.addEventListener("targetLost", () => {
+                            document.getElementById('tutorial-overlay').style.display = 'flex';
+                            vid.pause();
+                            hideMascotStage();
+                        });
+                    }
+                }, 500); 
+
+            }, 2000); 
+        }
+
+        // --- 5. DETEKSI GESTUR AI SENSOR (DIPERBAIKI) ---
+
+        function initMediaPipe() {
+            updateStatus("Mengunduh AI (~10MB)...", false);
+            const videoElement = document.getElementById('webcam');
+            const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
+            
+            hands.setOptions({ maxNumHands: 1, modelComplexity: 0, minDetectionConfidence: 0.65, minTrackingConfidence: 0.65 });
+            hands.onResults(onHandResults);
+
+            hands.initialize().then(() => {
+                updateStatus("Meminta Akses Kamera...", false);
+                let lastProcessTime = 0;
+                mpCameraInstance = new Camera(videoElement, {
+                    onFrame: async () => { 
+                        const now = Date.now();
+                        if (!isAnimating && !isProcessingAI && now - lastProcessTime >= 150) { 
+                            isProcessingAI = true;
+                            await hands.send({image: videoElement}); 
+                            isProcessingAI = false;
+                            lastProcessTime = now;
+                        }
+                    },
+                    width: 160, height: 120 
+                });
+                
+                mpCameraInstance.start().then(() => {
+                    updateStatus("Sensor Aktif", true); hintEl.innerHTML = sequenceStages[0].hint;
+                }).catch((err) => {
+                    updateStatus("Kamera Ditolak", false, true);
+                    hintEl.innerHTML = "Harap izinkan akses kamera di browser.";
+                    startBtn.style.display = 'block'; startBtn.innerText = 'Coba Lagi';
+                });
+            }).catch((err) => { updateStatus("Gagal Memuat AI", false, true); });
+        }
+
+        let consecutiveGestures = 0;
+        function onHandResults(results) {
+            if (isAnimating) return; 
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                const landmarks = results.multiHandLandmarks[0];
+                
+                // UBAH 2: Kalkulasi jarak 2D. Tahan terhadap kemiringan tangan.
+                const getD = (p1, p2) => Math.hypot(landmarks[p1].x - landmarks[p2].x, landmarks[p1].y - landmarks[p2].y);
+                
+                // Cek apakah jari terbuka dengan membandingkan jarak ujungnya ke pergelangan (0) 
+                // vs jarak pangkal jarinya ke pergelangan. Pengali 1.2 mencegah salah deteksi jika jari ditekuk setengah.
+                const isIndexOpen = getD(8, 0) > getD(5, 0) * 1.2;
+                const isMiddleOpen = getD(12, 0) > getD(9, 0) * 1.2;
+                const isRingOpen = getD(16, 0) > getD(13, 0) * 1.2;
+                const isPinkyOpen = getD(20, 0) > getD(17, 0) * 1.2;
+                
+                // Jempol dihitung jaraknya ke pangkal kelingking (17) untuk akurasi maksimal
+                const isThumbOpen = getD(4, 17) > getD(2, 17) * 1.2;
+                
+                // Jarak cubitan
+                const pinchDist = getD(4, 8); 
+
+                // Definisi state yang kaku agar tidak tumpang tindih
+                const isFist = !isIndexOpen && !isMiddleOpen && !isRingOpen && !isPinkyOpen;
+                const isPeaceSign = isIndexOpen && isMiddleOpen && !isRingOpen && !isPinkyOpen;
+                const isIndexPointing = isIndexOpen && !isMiddleOpen && !isRingOpen && !isPinkyOpen;
+                const isOpenPalm = isIndexOpen && isMiddleOpen && isRingOpen && isPinkyOpen && isThumbOpen;
+                // Toleransi jempol: yang lain harus tertutup
+                const isThumbUp = isThumbOpen && !isIndexOpen && !isMiddleOpen && !isRingOpen;
+                const isPinch = pinchDist < 0.10 && !isFist; 
+
+                if (currentStageIndex < sequenceStages.length - 1) {
+                    const nextStage = sequenceStages[currentStageIndex + 1];
+                    let matchTarget = false;
+                    
+                    if (nextStage.reqGesture === 'fist' && isFist) matchTarget = true;
+                    else if (nextStage.reqGesture === 'peace' && isPeaceSign) matchTarget = true;
+                    else if (nextStage.reqGesture === 'index' && isIndexPointing) matchTarget = true;
+                    else if (nextStage.reqGesture === 'open_palm' && isOpenPalm) matchTarget = true;
+                    else if (nextStage.reqGesture === 'thumb_up' && isThumbUp) matchTarget = true;
+                    else if (nextStage.reqGesture === 'pinch' && isPinch) matchTarget = true;
+
+                    if (matchTarget) {
+                        consecutiveGestures++;
+                        // UBAH 3: Kurangi threshold dari 4 ke 3 agar deteksi terasa lebih responsif
+                        if (consecutiveGestures >= 3) {
+                            currentStageIndex++; 
+                            transitionPattern(nextStage.shape);
+                            hintEl.innerHTML = nextStage.hint; 
+                            consecutiveGestures = 0;
+                        }
+                    } else { 
+                        consecutiveGestures = 0; 
+                    }
+                }
+            } else { 
+                consecutiveGestures = 0; 
+            }
+        }
+
+        // --- 6. RENDER LOOP ---
+
+        function animate() {
+            requestAnimationFrame(animate);
+            if(particles) {
+                const elapsedTime = clock.getElapsedTime();
+                particleMaterial.uniforms.uTime.value = elapsedTime;
+                
+                particles.rotation.y = elapsedTime * 0.5; 
+                particles.rotation.x = THREE.MathUtils.lerp(particles.rotation.x, -0.2, 0.05); 
+
+                renderer.render(scene, camera);
+            }
+        }
+
+        // ============ MASKOT AR LOGIC ============
+        let arSlides = [];
+        let arSlideIdx = 0;
+        let arVideoSrc = null;
+        let maskotTapped = false;
+        let bubbleOpen = false;
 
-    <div id="ui-panel">
-        <label class="ui-label">Warna Partikel</label>
-        <input type="color" id="color-picker" value="#e59a8d">
-    </div>
+        function initMascotData(data) {
+            // Pull slides from customer data
+            let raw = data.slides;
+            try { if (typeof raw === 'string') raw = JSON.parse(raw); } catch(e) {}
+            arSlides = (Array.isArray(raw) && raw.length > 0 && raw[0].t) ? raw : [
+                { t: 'Hana Memoria ✨', b: 'Kenangan manis ini dihidupkan kembali khusus untukmu.' }
+            ];
+            arSlideIdx = 0;
+            arVideoSrc = data.link_video || null;
 
-    <div class="guide-list" id="guide-list">
-        <div class="step active" id="step-0">1. ✊ Genggam</div>
-        <div class="step" id="step-1">2. ✋ Buka Lebar</div>
-        <div class="step" id="step-2">3. ✌️ Dua Jari</div>
-        <div class="step" id="step-3">4. ☝️ Tunjuk Depan</div>
-        <div class="step" id="step-4">5. 👆 Tunjuk Atas</div>
-        <div class="step" id="step-5">6. 🫰 Cubit (Love)</div>
-    </div>
-
-    <div id="subtitle-container">
-        <div id="subtitle-text"></div>
-    </div>
-
-    <video id="webcam" autoplay playsinline muted style="display: none;"></video>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
-
-    <script id="vertexShader" type="x-shader/x-vertex">
-        uniform float u_time;
-        uniform float u_transition;
-        uniform float u_motionIntensity; 
-        
-        attribute float a_random;
-        attribute vec3 a_startPos;
-        attribute vec3 a_targetPos;
-        
-        varying float vRandom;
-
-        void main() {
-            vRandom = a_random;
-            vec3 basePos = mix(a_startPos, a_targetPos, u_transition);
-
-            vec3 pos = basePos + vec3(
-                sin(u_time * (0.5 + a_random) + a_random * 10.0) * (0.05 + a_random * 0.1),
-                cos(u_time * (0.4 + a_random) + a_random * 10.0) * (0.05 + a_random * 0.1),
-                sin(u_time * (0.3 + a_random) + a_random * 10.0) * (0.05 + a_random * 0.1)
-            ) * u_motionIntensity;
-            
-            vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
-            
-            gl_PointSize = 0.3 * (1.0 + a_random) * (100.0 / -mvPosition.z);
-            gl_Position = projectionMatrix * mvPosition;
+            // Pre-fill video src
+            const v = document.getElementById('ar-video-el');
+            if (v && arVideoSrc) { v.src = arVideoSrc; }
         }
-    </script>
-    <script id="fragmentShader" type="x-shader/x-fragment">
-        uniform vec3 u_color;
-        varying float vRandom;
-        void main() {
-            vec2 pt = gl_PointCoord - vec2(0.5);
-            float sqDist = dot(pt, pt);
-            if (sqDist > 0.25) discard; 
-            
-            float alpha = smoothstep(0.25, 0.04, sqDist);
-            vec3 finalColor = u_color * (0.8 + vRandom * 0.4);
-            gl_FragColor = vec4(finalColor, alpha * 0.85); 
-        }
-    </script>
 
-    <script>
-        let scene, camera, renderer, clock;
-        let particles, particleMaterial;
-        
-        let particleCount = window.innerWidth < 768 ? 3000 : 8000; 
-        
-        const patternData = {};
-        const patternNames = ['scatter', 'singularity', 'chest', 'chest_open_tulip', 'heart', 'explode', 'frame_dynamic', 'shatter', 'envelope_closed', 'envelope_open'];
-        
-        let currentStage = 0; 
-        let isAnimating = false; 
-        // OPTIMASI ANTI-LAG: Lock untuk AI saat UI CSS (Subtitle) sedang bergerak
-        let isUIAnimating = false; 
-        let gestureTimer = 0;
-
-        const statusEl = document.getElementById('sensor-status');
-        const subtitleContainer = document.getElementById('subtitle-container');
-        const subtitleText = document.getElementById('subtitle-text');
-
-        let lastStatusText = "";
-        function updateStatus(text, color = null, borderColor = null) {
-            if (lastStatusText !== text) {
-                statusEl.innerText = text;
-                if (color) statusEl.style.color = color;
-                if (borderColor) statusEl.style.borderColor = borderColor;
-                lastStatusText = text;
-            }
+        function showMascotStage() {
+            const stage = document.getElementById('ar-mascot-stage');
+            stage.classList.add('active');
+            // Entrance after tiny delay
+            setTimeout(() => {
+                const wrap = document.getElementById('mascot-wrap');
+                wrap.classList.add('entered');
+                // Auto-show bubble after mascot lands
+                setTimeout(() => openBubble(), 700);
+            }, 80);
         }
 
-        initThree();
-        createParticles();
-        initMediaPipe();
-        animate();
-
-        function initThree() {
-            scene = new THREE.Scene();
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.z = 6.0; 
-
-            renderer = new THREE.WebGLRenderer({ 
-                antialias: false, 
-                powerPreference: "high-performance"
-            });
-            renderer.setClearColor(0x080810, 1);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            document.body.appendChild(renderer.domElement);
-            clock = new THREE.Clock();
-            window.addEventListener('resize', onWindowResize, false);
-
-            document.getElementById('color-picker').addEventListener('input', (e) => {
-                if(particleMaterial) particleMaterial.uniforms.u_color.value.set(e.target.value);
-            });
+        function hideMascotStage() {
+            const stage = document.getElementById('ar-mascot-stage');
+            stage.classList.remove('active');
+            const wrap = document.getElementById('mascot-wrap');
+            wrap.classList.remove('entered');
+            wrap.style.opacity = '0';
+            closeBubble();
+            closeVideoPanel();
+            // Reset for next time
+            setTimeout(() => { wrap.style.opacity = ''; }, 100);
         }
 
-        function createParticles() {
-            if (particles) scene.remove(particles);
-            
-            patternNames.forEach(name => {
-                const arr = new Float32Array(particleCount * 3);
-                generatePattern(arr, name);
-                patternData[name] = arr;
-            });
-
-            const geometry = new THREE.BufferGeometry();
-            const randoms = new Float32Array(particleCount);
-            for (let i = 0; i < particleCount; i++) randoms[i] = Math.random();
-
-            geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(patternData['scatter']), 3));
-            geometry.setAttribute('a_startPos', new THREE.BufferAttribute(new Float32Array(patternData['scatter']), 3));
-            geometry.setAttribute('a_targetPos', new THREE.BufferAttribute(new Float32Array(patternData['scatter']), 3));
-            geometry.setAttribute('a_random', new THREE.BufferAttribute(randoms, 1));
-
-            particleMaterial = new THREE.ShaderMaterial({
-                vertexShader: document.getElementById('vertexShader').textContent,
-                fragmentShader: document.getElementById('fragmentShader').textContent,
-                uniforms: {
-                    u_time: { value: 0 },
-                    u_transition: { value: 1.0 }, 
-                    u_color: { value: new THREE.Color(document.getElementById('color-picker').value) },
-                    u_motionIntensity: { value: 1.0 } 
-                },
-                transparent: true, 
-                depthWrite: false,
-                depthTest: false,
-                blending: THREE.AdditiveBlending 
-            });
-
-            particles = new THREE.Points(geometry, particleMaterial);
-            scene.add(particles);
+        function openBubble() {
+            arSlideIdx = 0;
+            updateBubble();
+            document.getElementById('speech-bubble').classList.add('show');
+            document.getElementById('mascot-tap-hint').classList.add('hidden');
+            bubbleOpen = true;
         }
 
-        function generatePattern(positions, pattern) {
-            for (let i = 0; i < particleCount; i++) {
-                let x = 0, y = 0, z = 0;
-                const pIdx = i * 3;
-                const rand1 = Math.random();
-                const rand2 = Math.random();
-                
-                switch (pattern) {
-                    case 'scatter': 
-                        x = (Math.random() - 0.5) * 20; y = (Math.random() - 0.5) * 20; z = (Math.random() - 0.5) * 20;
-                        break;
-                    case 'singularity': 
-                        x = (Math.random() - 0.5) * 0.1; y = (Math.random() - 0.5) * 0.1; z = (Math.random() - 0.5) * 0.1;
-                        break;
-                    case 'chest': 
-                        const pC = Math.random();
-                        if (pC < 0.6) {
-                            let face = Math.floor(Math.random() * 6);
-                            let cx = (Math.random()-0.5)*2.4, cy = (Math.random()-0.5)*1.2 - 0.5, cz = (Math.random()-0.5)*1.6; 
-                            if (face===0) { x=1.2; y=cy; z=cz; } else if (face===1) { x=-1.2; y=cy; z=cz; }
-                            else if (face===2) { x=cx; y=0.1; z=cz; } else if (face===3) { x=cx; y=-1.1; z=cz; }
-                            else if (face===4) { x=cx; y=cy; z=0.8; } else { x=cx; y=cy; z=-0.8; }
-                        } else if (pC < 0.95) {
-                            let theta = Math.PI * rand1, len = (rand2 - 0.5) * 2.4;
-                            x = len; y = 0.1 + 0.8 * Math.sin(theta); z = 0.8 * Math.cos(theta);
-                        } else {
-                            x = (Math.random()-0.5)*0.3; y = 0.0 + (Math.random()-0.5)*0.3; z = 0.85 + (Math.random()*0.1);
-                        }
-                        break;
-                    case 'chest_open_tulip': 
-                        if (Math.random() < 0.3) {
-                            let isLid = Math.random() > 0.6;
-                            if(!isLid) {
-                                let f = Math.floor(Math.random() * 6);
-                                let cx = (Math.random()-0.5)*2.4, cy = (Math.random()-0.5)*1.2 - 0.5, cz = (Math.random()-0.5)*1.6; 
-                                if (f===0) { x=1.2; y=cy; z=cz; } else if (f===1) { x=-1.2; y=cy; z=cz; }
-                                else if (f===2) { x=cx; y=0.1; z=cz; } else if (f===3) { x=cx; y=-1.1; z=cz; }
-                                else if (f===4) { x=cx; y=cy; z=0.8; } else { x=cx; y=cy; z=-0.8; }
-                            } else {
-                                let theta = Math.PI * rand1, len = (rand2 - 0.5) * 2.4;
-                                let origY = 0.8 * Math.sin(theta), origZ = 0.8 * Math.cos(theta);
-                                let angle = 2.0; 
-                                x = len; y = 0.1 + origY * Math.cos(angle) - (origZ+0.8) * Math.sin(angle);
-                                z = -0.8 + origY * Math.sin(angle) + (origZ+0.8) * Math.cos(angle);
-                            }
-                            y -= 2.0; 
-                        } else {
-                            const part = Math.random();
-                            const scaleF = 0.8; 
-                            if (part < 0.6) { 
-                                const u = rand1, v = rand2 * Math.PI * 2;
-                                const rProfile = Math.pow(u, 0.4) * (1.2 - u * 0.4); 
-                                const petals = 1.0 + 0.15 * Math.sin(6 * v) * u;
-                                const R = rProfile * petals * (0.85 + 0.15 * Math.random()) * scaleF;
-                                x = R * Math.cos(v); z = R * Math.sin(v);
-                                y = ((u * 1.8) + (Math.abs(Math.sin(3 * v)) * 0.3 * Math.pow(u, 2))) * scaleF; 
-                            } else if (part < 0.7) { 
-                                const u = rand1, theta = rand2 * Math.PI * 2;
-                                y = (-u * 2.8) * scaleF; 
-                                const r = (0.04 + Math.random() * 0.04) * scaleF; 
-                                x = r * Math.cos(theta) + Math.sin(u * 2.0) * 0.05; z = r * Math.sin(theta);
-                            } else { 
-                                const u = rand1, v = rand2; 
-                                const spineX = Math.pow(u, 1.5) * 1.5 * scaleF;
-                                const spineY = (-2.0 + u * 2.5) * scaleF;
-                                const spineZ = Math.sin(u * Math.PI) * 0.4 * scaleF; 
-                                const leafWidth = Math.sin(u * Math.PI) * 0.5 * (1.0 - u * 0.2) * scaleF;
-                                x = spineX + (v - 0.5) * leafWidth * 0.6;
-                                y = spineY + Math.sin(v * Math.PI) * 0.15;
-                                z = spineZ + (v - 0.5) * leafWidth;
-                            }
-                            y += 0.5; 
-                        }
-                        break;
-                    case 'heart':
-                        const tH = rand2 * Math.PI * 2, rH = Math.sqrt(rand1), scaleH = 0.08;
-                        x = rH * 16 * Math.pow(Math.sin(tH), 3) * scaleH;
-                        y = rH * (13 * Math.cos(tH) - 5 * Math.cos(2*tH) - 2 * Math.cos(3*tH) - Math.cos(4*tH)) * scaleH;
-                        const thickness3D = Math.sqrt(Math.max(0, 1.0 - rH*rH)) * 0.6;
-                        z = (Math.random() - 0.5) * thickness3D; 
-                        y += 0.2; 
-                        break;
-                    case 'explode': 
-                        x = (Math.random() - 0.5) * 20; y = (Math.random() - 0.5) * 20; z = (Math.random() - 0.5) * 20;
-                        break;
-                    case 'frame_dynamic': 
-                        if (Math.random() < 0.85) { 
-                            const wOuter = 1.4, hOuter = 1.8, thick = 0.4, edge = Math.random();
-                            if (edge < 0.25) { x = (Math.random()-0.5) * wOuter * 2; y = hOuter - Math.random() * thick; }
-                            else if (edge < 0.5) { x = (Math.random()-0.5) * wOuter * 2; y = -hOuter + Math.random() * thick; }
-                            else if (edge < 0.75) { x = -wOuter + Math.random() * thick; y = (Math.random()-0.5) * hOuter * 2; }
-                            else { x = wOuter - Math.random() * thick; y = (Math.random()-0.5) * hOuter * 2; }
-                            z = (Math.random() - 0.5) * 0.2; 
-                        } else { 
-                            x = (Math.random() - 0.5) * 2.0; y = (Math.random() - 0.5) * 2.8; z = (Math.random() - 0.5) * 0.5;
-                        }
-                        break;
-                    case 'shatter': 
-                        x = (Math.random() - 0.5) * 8.0; y = -4.0 - Math.random() * 4.0; z = (Math.random() - 0.5) * 5.0;
-                        break;
-                    case 'envelope_closed':
-                        if (Math.random() < 0.65) { 
-                            x = (Math.random()-0.5) * 3.5; y = (Math.random()-0.5) * 2.0 - 0.2; z = (Math.random()-0.5) * 0.1;
-                        } else { 
-                            let u = rand1, v = rand2; if (u + v > 1) { u = 1 - u; v = 1 - v; } 
-                            x = -1.75 + u * 3.5 + v * 1.75; y = 0.8 + u * 0 + v * (-0.8); z = 0.1 + (Math.random()-0.5) * 0.05; 
-                        }
-                        break;
-                    case 'envelope_open':
-                        if (Math.random() < 0.65) { 
-                            x = (Math.random()-0.5) * 3.5; y = (Math.random()-0.5) * 2.0 - 0.2; z = (Math.random()-0.5) * 0.1;
-                        } else { 
-                            let u = rand1, v = rand2; if (u + v > 1) { u = 1 - u; v = 1 - v; } 
-                            x = -1.75 + u * 3.5 + v * 1.75; y = 0.8 + u * 0 + v * 1.5; z = -0.1 + (Math.random()-0.5) * 0.05; 
-                        }
-                        break;
-                }
-                positions[pIdx] = x; positions[pIdx + 1] = y; positions[pIdx + 2] = z;
-            }
+        function closeBubble() {
+            document.getElementById('speech-bubble').classList.remove('show');
+            document.getElementById('mascot-tap-hint').classList.remove('hidden');
+            bubbleOpen = false;
         }
 
-        function transitionPattern(newPattern, durationSec = 3.0) {
-            const startPositions = particles.geometry.attributes.a_startPos.array;
-            const targetPositions = particles.geometry.attributes.a_targetPos.array;
-            
-            startPositions.set(targetPositions);
-            targetPositions.set(patternData[newPattern]);
-
-            particles.geometry.attributes.a_startPos.needsUpdate = true;
-            particles.geometry.attributes.a_targetPos.needsUpdate = true;
-
-            particleMaterial.uniforms.u_transition.value = 0.0; 
-
-            particles.userData.transitioning = true;
-            particles.userData.transitionStartTime = clock.elapsedTime;
-            particles.userData.transitionDuration = durationSec;
+        function updateBubble() {
+            const slide = arSlides[arSlideIdx] || arSlides[0];
+            document.getElementById('bubble-slide-title').textContent = slide.t || 'Hana Memoria';
+            document.getElementById('bubble-slide-body').textContent = slide.b || '';
+            const btn = document.getElementById('bubble-next-btn');
+            btn.textContent = (arSlideIdx < arSlides.length - 1) ? 'LANJUT ›' : 'TUTUP ✕';
         }
 
-        function updateUIHighlight(stepIndex) {
-            document.querySelectorAll('.step').forEach((el, i) => {
-                if (i === stepIndex) el.classList.add('active');
-                else el.classList.remove('active');
-            });
-        }
-
-        function showSubtitle(text) {
-            subtitleText.innerHTML = text;
-            subtitleContainer.classList.add('show');
-            if(particleMaterial) particleMaterial.uniforms.u_motionIntensity.value = 0.2; 
-            
-            // KUNCI AI SEMENTARA SAAT CSS BERGERAK (800ms)
-            isUIAnimating = true;
-            setTimeout(() => { isUIAnimating = false; }, 800);
-        }
-        function hideSubtitle() {
-            subtitleContainer.classList.remove('show');
-            if(particleMaterial) particleMaterial.uniforms.u_motionIntensity.value = 1.0;
-        }
-
-        setTimeout(() => {
-            if(currentStage === 0) showSubtitle("Tahap 1: <span>Genggam Tangan (✊)</span> untuk menyatukan kenangan.");
-        }, 2000);
-
-        function triggerSequenceStep(stepTarget) {
-            if (isAnimating) return;
-            isAnimating = true; // Blokir AI saat transisi partikel
-            updateStatus("Merespons...", "#e59a8d");
-            hideSubtitle();
-
-            if (stepTarget === 1) {
-                updateStatus("Mengumpulkan debu...", "#e59a8d");
-                transitionPattern('singularity', 1.2);
+        window.onBubbleNext = function(e) {
+            e.stopPropagation();
+            if (arSlideIdx < arSlides.length - 1) {
+                // Fade text swap
+                const bub = document.getElementById('speech-bubble');
+                bub.style.opacity = '0.4';
                 setTimeout(() => {
-                    updateStatus("Membentuk Peti...", "#e59a8d");
-                    transitionPattern('chest', 2.5);
-                    setTimeout(() => { 
-                        isAnimating = false; currentStage = 1; updateUIHighlight(1);
-                        updateStatus("Siap.", "#e59a8d"); 
-                        showSubtitle("Tahap 2: <span>Buka Lebar Tangan (✋)</span> untuk membuka peti.");
-                    }, 2600); 
-                }, 1300); 
-            } 
-            else if (stepTarget === 2) {
-                updateStatus("Membuka Peti...", "#e59a8d");
-                transitionPattern('chest_open_tulip', 3.5);
-                setTimeout(() => { 
-                    isAnimating = false; currentStage = 2; updateUIHighlight(2);
-                    updateStatus("Siap.", "#e59a8d"); 
-                    showSubtitle("Tahap 3: Bentuk <span>Dua Jari (✌️)</span> untuk menggugurkan kelopak.");
-                }, 3600);
-            }
-            else if (stepTarget === 3) {
-                updateStatus("Kelopak berguguran...", "#e59a8d");
-                transitionPattern('heart', 4.0);
-                setTimeout(() => { 
-                    isAnimating = false; currentStage = 3; updateUIHighlight(3);
-                    updateStatus("Siap.", "#e59a8d"); 
-                    showSubtitle("Tahap 4: <span>Tunjuk Kedepan (☝️)</span> untuk membingkai cerita.");
-                }, 4100);
-            }
-            else if (stepTarget === 4) {
-                updateStatus("Membesarkan Hati...", "#e59a8d");
-                transitionPattern('explode', 1.0);
-                setTimeout(() => {
-                    updateStatus("Membingkai Kenangan...", "#e59a8d");
-                    transitionPattern('frame_dynamic', 3.0);
-                    setTimeout(() => { 
-                        isAnimating = false; currentStage = 4; updateUIHighlight(4);
-                        updateStatus("Siap.", "#e59a8d"); 
-                        showSubtitle("Tahap 5: <span>Tunjuk Ke Atas (👆)</span> untuk menyimpan ke amplop.");
-                    }, 3100);
-                }, 1100);
-            }
-            else if (stepTarget === 5) {
-                updateStatus("Memecahkan Bingkai...", "#e59a8d");
-                transitionPattern('shatter', 1.0);
-                setTimeout(() => {
-                    updateStatus("Membentuk Amplop...", "#e59a8d");
-                    transitionPattern('envelope_closed', 3.0);
-                    setTimeout(() => { 
-                        isAnimating = false; currentStage = 5; updateUIHighlight(5);
-                        updateStatus("Siap.", "#e59a8d"); 
-                        showSubtitle("Tahap Terakhir: Beri <span>Cubitan Cinta (🫰)</span> untuk membaca pesan.");
-                    }, 3100);
-                }, 1100);
-            }
-            else if (stepTarget === 6) {
-                updateStatus("Membuka Surat...", "#e59a8d");
-                transitionPattern('envelope_open', 2.5);
-                setTimeout(() => {
-                    document.getElementById('message-card').classList.add('show');
-                    setTimeout(() => { 
-                        isAnimating = false; currentStage = 6; updateUIHighlight(0);
-                        updateStatus("Selesai.", "white"); 
-                    }, 3000);
-                }, 1500);
-            }
-        }
-
-        function initMediaPipe() {
-            const videoElement = document.getElementById('webcam');
-            const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
-            
-            hands.setOptions({ maxNumHands: 1, modelComplexity: 0, minDetectionConfidence: 0.7, minTrackingConfidence: 0.7 });
-            hands.onResults(onHandResults);
-
-            let lastProcessTime = 0;
-            const mpCamera = new Camera(videoElement, {
-                onFrame: async () => { 
-                    const now = Date.now();
-                    // CEGAH AI BERJALAN SAAT SUBTITLE MUNCUL (isUIAnimating) AGAR TIDAK LAG
-                    if (!isAnimating && !isUIAnimating && now - lastProcessTime >= 100) { 
-                        await hands.send({image: videoElement}); 
-                        lastProcessTime = now;
-                    }
-                },
-                width: 320, height: 240 
-            });
-            
-            mpCamera.start().then(() => {
-                document.getElementById('loading').classList.add('fade-out');
-                updateStatus("Menunggu Gestur Pertama...", "white", "rgba(255,255,255,0.2)");
-            }).catch(() => {
-                updateStatus("Kamera Gagal Akses", "red", "red");
-            });
-        }
-
-        function onHandResults(results) {
-            if (isAnimating || isUIAnimating) return; 
-
-            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-                const landmarks = results.multiHandLandmarks[0];
-                
-                const isIndexOpen = landmarks[8].y < landmarks[6].y;
-                const isMiddleOpen = landmarks[12].y < landmarks[10].y;
-                const isRingOpen = landmarks[16].y < landmarks[14].y;
-                const isPinkyOpen = landmarks[20].y < landmarks[18].y;
-                
-                const pinchDist = Math.hypot(landmarks[4].x - landmarks[8].x, landmarks[4].y - landmarks[8].y);
-                const indexLength = Math.hypot(landmarks[8].x - landmarks[5].x, landmarks[8].y - landmarks[5].y);
-                const thumbToIndexBase = Math.hypot(landmarks[4].x - landmarks[5].x, landmarks[4].y - landmarks[5].y);
-                
-                const isThumbOpen = thumbToIndexBase > (indexLength * 0.8);
-
-                const isFist = !isIndexOpen && !isMiddleOpen && !isRingOpen && !isPinkyOpen;
-                const isOpen = isIndexOpen && isMiddleOpen && isRingOpen && isPinkyOpen;
-                const isPeace = isIndexOpen && isMiddleOpen && !isRingOpen && !isPinkyOpen;
-                
-                const isIndexOnly = isIndexOpen && !isMiddleOpen && !isRingOpen && !isPinkyOpen && pinchDist > 0.1 && !isThumbOpen;
-                const isIndexAndThumb = isIndexOpen && !isMiddleOpen && !isRingOpen && !isPinkyOpen && isThumbOpen;
-                
-                const isPinch = pinchDist < 0.15 && !isMiddleOpen && !isRingOpen && !isPinkyOpen;
-
-                let targetDetected = false;
-
-                if (currentStage === 0 && isFist) targetDetected = true;
-                else if (currentStage === 1 && isOpen) targetDetected = true;
-                else if (currentStage === 2 && isPeace) targetDetected = true;
-                else if (currentStage === 3 && isIndexOnly) targetDetected = true;
-                else if (currentStage === 4 && isIndexAndThumb) targetDetected = true; 
-                else if (currentStage === 5 && isPinch) targetDetected = true; 
-                
-                if (targetDetected) {
-                    gestureTimer++;
-                    if (gestureTimer >= 4) { 
-                        if (currentStage === 0) triggerSequenceStep(1);
-                        else if (currentStage === 1) triggerSequenceStep(2);
-                        else if (currentStage === 2) triggerSequenceStep(3);
-                        else if (currentStage === 3) triggerSequenceStep(4);
-                        else if (currentStage === 4) triggerSequenceStep(5);
-                        else if (currentStage === 5) triggerSequenceStep(6);
-                        gestureTimer = 0;
-                    }
-                } else {
-                    gestureTimer = 0; 
-                }
-
+                    arSlideIdx++;
+                    updateBubble();
+                    bub.style.opacity = '1';
+                }, 200);
             } else {
-                if(!isAnimating && currentStage !== 6) {
-                    updateStatus("Tangan Tidak Terdeteksi", "rgba(255,255,255,0.5)", "rgba(255,255,255,0.2)");
-                }
+                closeBubble();
             }
+        };
+
+        window.onMascotTap = function() {
+            if (bubbleOpen) {
+                closeBubble();
+            } else {
+                openBubble();
+            }
+        };
+
+        window.onHeartTap = function(e) {
+            e.stopPropagation();
+            openVideoPanel();
+        };
+
+        function openVideoPanel() {
+            const panel = document.getElementById('video-panel');
+            panel.classList.add('show');
+            const v = document.getElementById('ar-video-el');
+            if (v) v.play();
+            closeBubble();
         }
 
-        // KEMBALI MENGGUNAKAN NATIVE REQUEST ANIMATION FRAME AGAR KANVAS MULUS DAN TIDAK STUTTER
-        function animate() {
-            requestAnimationFrame(animate);
+        window.closeVideoPanel = function() {
+            const panel = document.getElementById('video-panel');
+            panel.classList.remove('show');
+            const v = document.getElementById('ar-video-el');
+            if (v) { v.pause(); v.currentTime = 0; }
+        };
 
-            const elapsedTime = clock.getElapsedTime();
-            if (particleMaterial) particleMaterial.uniforms.u_time.value = elapsedTime;
+        // ============ END MASKOT LOGIC ============
 
-            if (particles && particles.userData.transitioning) {
-                const { transitionStartTime, transitionDuration } = particles.userData;
-                const progress = THREE.MathUtils.clamp((elapsedTime - transitionStartTime) / transitionDuration, 0, 1);
-                
-                const easedProgress = progress < .5 ? 4 * progress * progress * progress : (progress - 1) * (2 * progress - 2) * (2 * progress - 2) + 1;
-                particleMaterial.uniforms.u_transition.value = easedProgress;
-                
-                if (progress >= 1) particles.userData.transitioning = false;
-            }
-
-            if (particles && !particles.userData.transitioning) {
-                if (currentStage === 1) {
-                    particles.rotation.y += 0.02;
-                    particles.rotation.x = 0; particles.rotation.z = 0;
-                } else if (currentStage === 5) {
-                    particles.rotation.y += 0.01;
-                    particles.rotation.x = 0; particles.rotation.z = 0;
-                } else if (currentStage === 6) {
-                    particles.rotation.y = THREE.MathUtils.lerp(particles.rotation.y, 0, 0.05);
-                } else {
-                    particles.rotation.y = elapsedTime * 0.2;
-                    particles.rotation.x = Math.cos(elapsedTime * 0.1) * 0.1;
-                }
-            }
-
-            renderer.render(scene, camera);
-        }
-
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        }
-    </script>
-</body>
-</html>
+        function onWindowResize() {
+            if(camera && renderer) {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.position.z = isMobile() ? 20 : 15;
+                if(particleMaterial) particleMaterial.uniforms.uSizeMultiplier.value = isMobile() ? 4.0 : 2.0;
+                camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+        }
+    </script>
+</body>
+</html>

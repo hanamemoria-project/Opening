@@ -121,10 +121,17 @@
 
         /* ================== MASKOT AR OVERLAY ================== */
         #ar-mascot-stage {
-            position: fixed; inset: 0; z-index: 1100;
+            position: fixed; inset: 0; z-index: 9999;
             display: none; pointer-events: none;
+            background: transparent;
         }
         #ar-mascot-stage.active { display: block; }
+
+        /* Preview mode: tutup kamera dengan background gelap */
+        #ar-mascot-stage.preview-mode {
+            background: radial-gradient(ellipse at center 70%, rgba(120,50,40,0.6) 0%, rgba(10,8,14,0.97) 100%);
+            pointer-events: auto;
+        }
 
         /* === MASKOT === */
         #mascot-wrap {
@@ -316,11 +323,6 @@
             animation: mascotBtnBob 2s ease-in-out infinite;
         }
         @keyframes mascotBtnBob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-3px)} }
-
-        /* Preview mode background */
-        #ar-mascot-stage.preview-mode {
-            background: radial-gradient(ellipse at center 70%, rgba(120,50,40,0.5) 0%, rgba(10,8,14,0.88) 100%);
-        }
 
         /* Tombol tutup preview */
         #preview-close-btn {
@@ -1115,6 +1117,14 @@
             isPreviewMode = true;
             const stage = document.getElementById('ar-mascot-stage');
             stage.classList.add('active', 'preview-mode');
+
+            // Sembunyikan kamera AR agar tidak tembus
+            const arContainer = document.getElementById('mindar-overlay-container');
+            if (arContainer) arContainer.style.visibility = 'hidden';
+            // Sembunyikan tutorial overlay juga
+            const tutOverlay = document.getElementById('tutorial-overlay');
+            if (tutOverlay) tutOverlay.style.opacity = '0';
+
             const wrap = document.getElementById('mascot-wrap');
             wrap.classList.add('entered');
             setTimeout(() => openBubble(), 700);
@@ -1124,12 +1134,18 @@
             isPreviewMode = false;
             const stage = document.getElementById('ar-mascot-stage');
             stage.classList.remove('active', 'preview-mode');
+
+            // Tampilkan kembali kamera AR
+            const arContainer = document.getElementById('mindar-overlay-container');
+            if (arContainer) arContainer.style.visibility = '';
+            const tutOverlay = document.getElementById('tutorial-overlay');
+            if (tutOverlay) tutOverlay.style.opacity = '';
+
             const wrap = document.getElementById('mascot-wrap');
             wrap.classList.remove('entered');
             wrap.style.opacity = '';
             closeBubble();
             closeVideoPanel();
-            setTimeout(() => { wrap.style.opacity = ''; }, 100);
         };
         // ============ END MASKOT PREVIEW ============
 

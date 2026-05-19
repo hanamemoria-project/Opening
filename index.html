@@ -430,6 +430,11 @@
         const params = new URLSearchParams(window.location.search);
         const idPelanggan = params.get('id') || 'default';
 
+        // Jika tidak ada ?id sama sekali, redirect ke demo
+        if (!params.get('id')) {
+            window.location.replace(window.location.pathname + '?id=demo');
+        }
+
         let slides = [];
         let slideIndex = 0;
         let sceneARTemplate = ""; 
@@ -462,7 +467,62 @@
         const taglineHandEl = document.getElementById('tagline-hand');
         const isMobile = () => window.innerWidth < window.innerHeight;
 
+        // === DATA DEMO (untuk uji coba tanpa pesanan) ===
+        const DEMO_DATA = {
+            nama_pelanggan: "Demo Hana Memoria",
+            nama_paket: "Paket Demo",
+            tanggal_acara: "2025-01-01",
+            slides: JSON.stringify([
+                { t: "Hana Memoria ✨", b: "Selamat datang di demo interaktif Hana Memoria!" },
+                { t: "Maskot Hana 🎀", b: "Ketuk aku untuk membaca pesan, atau tekan ❤ untuk memutar video." },
+                { t: "Siap Merekam Kenangan", b: "Hubungi kami untuk membuat kenangan yang nyata untukmu." }
+            ]),
+            link_video: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+            link_target: "https://pub-02d853231cff4efa92ee6754c646a898.r2.dev/targets.mind",
+            video_posisi: "0 0 0",
+            video_skala: "1 1.5 1",
+            video_rotasi: "0 0 0",
+            pesan_teks: "Ini adalah pesan demo dari Hana Memoria 💕",
+            nomor_wa: "6281234567890"
+        };
+
         window.onload = async () => {
+            // === MODE DEMO ===
+            if (idPelanggan === 'demo') {
+                const data = DEMO_DATA;
+                initMascotData(data);
+                let rawSlides = data.slides;
+                try { if (typeof rawSlides === 'string') rawSlides = JSON.parse(rawSlides); } catch(e) {}
+                slides = Array.isArray(rawSlides) ? rawSlides : [{ t: "Demo", b: "Mode uji coba aktif." }];
+
+                const p = (data.video_posisi || "0 0 0").split(' ');
+                const s = (data.video_skala || "1 1.5 1").split(' ');
+                const rotZ = parseFloat((data.video_rotasi || "0 0 0").split(' ')[2]);
+
+                sceneARTemplate = `
+                    <a-scene id="ar-scene" mindar-image="imageTargetSrc: ${data.link_target}; autoStart: false; uiScanning: no;" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false" embedded>
+                        <a-assets><video id="webVideo" src="${data.link_video}" loop="true" crossorigin="anonymous" playsinline webkit-playsinline></video></a-assets>
+                        <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+                        <a-entity mindar-image-target="targetIndex: 0" id="target-ar">
+                            <a-video id="vDisplay" src="#webVideo" position="${p[0]} ${p[1]} 0" width="${s[0]}" height="${s[1]}" rotation="0 0 ${rotZ}"></a-video>
+                        </a-entity>
+                    </a-scene>
+                `;
+
+                document.getElementById('loading').classList.add('fade-out');
+                document.getElementById('main-hand-ui').style.display = 'block';
+
+                // Tampilkan badge demo
+                const badge = document.createElement('div');
+                badge.innerHTML = '🧪 MODE DEMO';
+                badge.style.cssText = 'position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:9999;background:rgba(255,180,100,0.92);color:#5a3000;font-family:Poppins,sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;padding:5px 14px;border-radius:20px;pointer-events:none;box-shadow:0 2px 12px rgba(255,140,0,0.3)';
+                document.body.appendChild(badge);
+
+                initThree(); createParticles(); animate();
+                return; // Skip Supabase fetch
+            }
+
+            // === MODE NORMAL (fetch Supabase) ===
             try {
                 const res = await fetch(`${SUPABASE_URL}/rest/v1/Pesanan?id_pesanan=eq.${idPelanggan}`, {
                     headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
@@ -507,7 +567,7 @@
             } catch (e) { 
                 document.getElementById('loading-sub').innerText = "Koneksi terputus. Silakan muat ulang.";
             }
-        };
+        }; // end window.onload
 
         function updateStatus(text, isActive = false, isError = false) {
             statusText.innerText = text;

@@ -106,7 +106,9 @@
             overflow: hidden;
         }
 
-        #tutorial-overlay { position: fixed; inset: 0; z-index: 1500; display: none; flex-direction: column; justify-content: center; align-items: center; background: rgba(0, 0, 0, 0.3); color: white; backdrop-filter: blur(2px); pointer-events: none;}
+        #tutorial-overlay { position: fixed; inset: 0; z-index: 1500; display: none; flex-direction: column; justify-content: center; align-items: center; background: rgba(0, 0, 0, 0.3); color: white; backdrop-filter: blur(2px); pointer-events: none; }
+        #tutorial-overlay * { pointer-events: none; }
+        #preview-mascot-btn { pointer-events: auto !important; }
         .tutorial-logo-container { position: relative; width: 160px; height: 160px; display: flex; justify-content: center; align-items: center; animation: pulseLogo 3.0s ease-in-out infinite; margin-bottom: 40px; }
         .tutorial-logo { width: 100%; height: auto; object-fit: contain; filter: drop-shadow(0 0 10px rgba(255,255,255,0.5)); }
         @keyframes pulseLogo { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }

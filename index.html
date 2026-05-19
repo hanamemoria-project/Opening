@@ -291,6 +291,56 @@
         }
         @keyframes hintBlink { 0%,100%{opacity:0.55} 50%{opacity:0.2} }
         #mascot-tap-hint.hidden { display: none; }
+
+        /* === PREVIEW BUTTON (di tutorial overlay) === */
+        #preview-mascot-btn {
+            position: absolute; bottom: 28px; left: 50%;
+            transform: translateX(-50%);
+            display: flex; align-items: center; gap: 8px;
+            background: rgba(255,255,255,0.12);
+            border: 1.5px solid rgba(255,255,255,0.25);
+            border-radius: 50px; padding: 8px 18px 8px 10px;
+            color: #fff; font-family: 'Poppins', sans-serif;
+            font-size: 12px; font-weight: 500; letter-spacing: 0.3px;
+            cursor: pointer; backdrop-filter: blur(8px);
+            -webkit-tap-highlight-color: transparent;
+            transition: background 0.2s, transform 0.15s;
+            white-space: nowrap;
+        }
+        #preview-mascot-btn:active { transform: translateX(-50%) scale(0.93); }
+        #preview-mascot-btn img {
+            width: 28px; height: 28px; object-fit: contain;
+            filter: drop-shadow(0 2px 4px rgba(240,160,140,0.5));
+            animation: mascotBtnBob 2s ease-in-out infinite;
+        }
+        @keyframes mascotBtnBob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-3px)} }
+
+        /* Preview mode background */
+        #ar-mascot-stage.preview-mode {
+            background: radial-gradient(ellipse at center 70%, rgba(120,50,40,0.5) 0%, rgba(10,8,14,0.88) 100%);
+        }
+
+        /* Tombol tutup preview */
+        #preview-close-btn {
+            position: absolute; top: 18px; right: 18px;
+            background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 50%; width: 36px; height: 36px;
+            color: rgba(255,255,255,0.7); font-size: 18px; line-height: 1;
+            display: none; align-items: center; justify-content: center;
+            cursor: pointer; backdrop-filter: blur(6px);
+            -webkit-tap-highlight-color: transparent;
+            pointer-events: auto;
+        }
+        #ar-mascot-stage.preview-mode #preview-close-btn { display: flex; }
+
+        /* Label preview */
+        #preview-label {
+            position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+            font-family: 'Poppins', sans-serif; font-size: 10px; font-weight: 500;
+            color: rgba(255,200,180,0.5); letter-spacing: 2px; text-transform: uppercase;
+            pointer-events: none; opacity: 0; transition: opacity 0.4s; white-space: nowrap;
+        }
+        #ar-mascot-stage.preview-mode #preview-label { opacity: 1; }
     </style>
 </head>
 <body>
@@ -334,10 +384,18 @@
             <h3>Fokus ke Foto</h3>
             <p>Arahkan kameramu tepat ke foto fisik,<br>saksikan momen indah bersemi kembali. 🌸</p>
         </div>
+        <!-- Tombol preview maskot -->
+        <button id="preview-mascot-btn" onclick="toggleMascotPreview()">
+            <img src="https://pub-02d853231cff4efa92ee6754c646a898.r2.dev/Animasi/1000283700-removebg-preview.png" alt="">
+            <span>Lihat Maskot</span>
+        </button>
     </div>
 
     <!-- ============ MASKOT AR STAGE ============ -->
     <div id="ar-mascot-stage">
+        <!-- Preview mode UI -->
+        <div id="preview-label">✦ preview maskot ✦</div>
+        <button id="preview-close-btn" onclick="closeMascotPreview()">✕</button>
 
         <!-- Video panel (top) -->
         <div id="video-panel">
@@ -1047,6 +1105,32 @@
             }
         }
 
+        // ============ MASKOT PREVIEW (tanpa AR scan) ============
+        let isPreviewMode = false;
+
+        window.toggleMascotPreview = function() {
+            if (isPreviewMode) { closeMascotPreview(); return; }
+            isPreviewMode = true;
+            const stage = document.getElementById('ar-mascot-stage');
+            stage.classList.add('active', 'preview-mode');
+            const wrap = document.getElementById('mascot-wrap');
+            wrap.classList.add('entered');
+            setTimeout(() => openBubble(), 700);
+        };
+
+        window.closeMascotPreview = function() {
+            isPreviewMode = false;
+            const stage = document.getElementById('ar-mascot-stage');
+            stage.classList.remove('active', 'preview-mode');
+            const wrap = document.getElementById('mascot-wrap');
+            wrap.classList.remove('entered');
+            wrap.style.opacity = '';
+            closeBubble();
+            closeVideoPanel();
+            setTimeout(() => { wrap.style.opacity = ''; }, 100);
+        };
+        // ============ END MASKOT PREVIEW ============
+
         // ============ MASKOT AR LOGIC ============
         let arSlides = [];
         let arSlideIdx = 0;
